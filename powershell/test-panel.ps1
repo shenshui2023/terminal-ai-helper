@@ -45,6 +45,9 @@ try {
     if (-not $script:TaihLastPanelArgs -or ($script:TaihLastPanelArgs -notcontains "-File") -or ($script:TaihLastPanelArgs -notcontains $panelPath)) {
         throw "panel launcher did not prepare independent panel process arguments"
     }
+    if (($script:TaihLastPanelArgs -notcontains "-PanelId") -or ($script:TaihLastPanelArgs -notcontains "-AnchorHandle")) {
+        throw "panel launcher did not prepare reuse/follow arguments"
+    }
 } finally {
     Remove-Item Env:\TAIH_TEST_NO_PANEL_START -ErrorAction SilentlyContinue
 }

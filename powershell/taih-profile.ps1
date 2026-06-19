@@ -564,6 +564,15 @@ public class TaihWin32 {
     return [pscustomobject]@{ X = -1; Y = -1; W = -1; H = -1 }
 }
 
+function Get-TerminalAiForegroundHandle {
+    try {
+        if (-not ("TaihWin32" -as [type])) { [void](Get-TerminalAiForegroundRect) }
+        return ([TaihWin32]::GetForegroundWindow().ToInt64())
+    } catch {
+        return 0
+    }
+}
+
 function Show-TerminalAiPanel {
     param([string]$InitialText = "", [string]$Mode = "explain")
 
@@ -576,12 +585,26 @@ function Show-TerminalAiPanel {
     $inputFile = [System.IO.Path]::GetTempFileName()
     [System.IO.File]::WriteAllText($inputFile, [string]$InitialText, [System.Text.Encoding]::UTF8)
     $rect = Get-TerminalAiForegroundRect
+    $anchorHandle = Get-TerminalAiForegroundHandle
+    $panelId = if ($anchorHandle -gt 0) { "hwnd-$anchorHandle" } else { "pid-$PID" }
+    $panelDir = Join-Path $env:USERPROFILE ".terminal-ai-helper\panels"
+    New-Item -ItemType Directory -Path $panelDir -Force | Out-Null
+    $commandFile = Join-Path $panelDir "$panelId.command.json"
+    $pidFile = Join-Path $panelDir "$panelId.pid"
+    $payload = [pscustomobject]@{
+        inputFile = $inputFile
+        mode = $Mode
+        at = (Get-Date).ToString("o")
+    }
+    $payload | ConvertTo-Json -Compress | Set-Content -LiteralPath $commandFile -Encoding UTF8
     $args = @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", $panelPath,
         "-InputFile", $inputFile,
         "-Mode", $Mode,
+        "-PanelId", $panelId,
+        "-AnchorHandle", [string]$anchorHandle,
         "-AnchorX", [string]$rect.X,
         "-AnchorY", [string]$rect.Y,
         "-AnchorW", [string]$rect.W,
@@ -590,6 +613,14 @@ function Show-TerminalAiPanel {
     if ($env:TAIH_TEST_NO_PANEL_START -eq "1") {
         $script:TaihLastPanelArgs = $args
         return
+    }
+    $existingPid = ""
+    try { if (Test-Path -LiteralPath $pidFile) { $existingPid = (Get-Content -LiteralPath $pidFile -Raw).Trim() } } catch {}
+    if ($existingPid) {
+        $existing = Get-Process -Id ([int]$existingPid) -ErrorAction SilentlyContinue
+        if ($existing) {
+            return
+        }
     }
     Start-Process -FilePath "powershell" -ArgumentList $args -WindowStyle Hidden | Out-Null
 }

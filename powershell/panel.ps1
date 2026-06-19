@@ -1,6 +1,8 @@
 param(
     [string]$InputFile = "",
     [string]$Mode = "explain",
+    [string]$PanelId = "",
+    [long]$AnchorHandle = 0,
     [int]$AnchorX = -1,
     [int]$AnchorY = -1,
     [int]$AnchorW = -1,
@@ -11,6 +13,11 @@ $ErrorActionPreference = "Stop"
 $script:TaihRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $script:TaihCli = Join-Path $script:TaihRoot "bin\taih.js"
 $script:TaihSettingsPath = Join-Path $env:USERPROFILE ".terminal-ai-helper\panel-settings.json"
+$script:TaihPanelDir = Join-Path $env:USERPROFILE ".terminal-ai-helper\panels"
+$script:TaihPanelId = if ($PanelId) { $PanelId } else { "pid-$PID" }
+$script:TaihCommandFile = Join-Path $script:TaihPanelDir "$script:TaihPanelId.command.json"
+$script:TaihPidFile = Join-Path $script:TaihPanelDir "$script:TaihPanelId.pid"
+$script:TaihLastCommandStamp = [DateTime]::MinValue
 $script:TaihProcess = $null
 $script:TaihTimer = $null
 $script:TaihState = $null
@@ -29,6 +36,66 @@ function Q {
     if ($null -eq $Value) { return '""' }
     if ($Value -notmatch '[\s"]') { return $Value }
     return '"' + ($Value -replace '"', '\"') + '"'
+}
+
+function Ensure-Win32 {
+    if ("TaihPanelWin32" -as [type]) { return }
+    Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class TaihPanelWin32 {
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+}
+"@
+}
+
+function Get-AnchorRect {
+    Ensure-Win32
+    if ($AnchorHandle -gt 0) {
+        $hwnd = [IntPtr]$AnchorHandle
+        if ([TaihPanelWin32]::IsWindow($hwnd)) {
+            $rect = New-Object TaihPanelWin32+RECT
+            if ([TaihPanelWin32]::GetWindowRect($hwnd, [ref]$rect)) {
+                return [pscustomobject]@{
+                    X = $rect.Left
+                    Y = $rect.Top
+                    W = $rect.Right - $rect.Left
+                    H = $rect.Bottom - $rect.Top
+                }
+            }
+        }
+    }
+    return [pscustomobject]@{ X = $AnchorX; Y = $AnchorY; W = $AnchorW; H = $AnchorH }
+}
+
+function To-ModeValue {
+    param([string]$Value)
+    if ($Value -match '^explain') { return "explain" }
+    if ($Value -match '^fix') { return "fix" }
+    if ($Value -match '^complete') { return "complete" }
+    return $Value
+}
+
+function To-StyleValue {
+    param([string]$Value)
+    if ($Value -match '^brief') { return "brief" }
+    if ($Value -match '^standard') { return "standard" }
+    if ($Value -match '^examples') { return "examples" }
+    if ($Value -match '^custom') { return "custom" }
+    return $Value
+}
+
+function Select-ComboByPrefix {
+    param($Combo, [string]$Prefix)
+    for ($i = 0; $i -lt $Combo.Items.Count; $i++) {
+        if ([string]$Combo.Items[$i] -match "^$Prefix") {
+            $Combo.SelectedIndex = $i
+            return
+        }
+    }
 }
 
 function Read-InitialText {
@@ -87,14 +154,16 @@ function Refresh-HistoryList {
 function Move-PanelNearTerminal {
     param($Form)
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $anchor = Get-AnchorRect
     $width = [Math]::Min(620, [Math]::Max(460, [int]($screen.Width * 0.30)))
-    $height = if ($AnchorH -gt 300) { [Math]::Min($AnchorH, $screen.Height) } else { [Math]::Min(820, [int]($screen.Height * 0.82)) }
-    $x = if ($AnchorX -ge 0) { $AnchorX - $width - 8 } else { $screen.Left + 16 }
-    if ($x -lt $screen.Left) {
-        $x = if ($AnchorX -ge 0) { $AnchorX + 8 } else { $screen.Left + 16 }
+    $height = if ($anchor.H -gt 300) { [Math]::Min($anchor.H, $screen.Height) } else { [Math]::Min(820, [int]($screen.Height * 0.82)) }
+    $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W + 8 } else { $screen.Right - $width - 16 }
+    if (($x + $width) -gt $screen.Right) {
+        $x = if ($anchor.X -ge 0) { $anchor.X - $width - 8 } else { $screen.Right - $width - 16 }
     }
+    if ($x -lt $screen.Left) { $x = $screen.Left + 8 }
     if (($x + $width) -gt $screen.Right) { $x = $screen.Right - $width - 8 }
-    $y = if ($AnchorY -ge 0) { $AnchorY } else { $screen.Top + 24 }
+    $y = if ($anchor.Y -ge 0) { $anchor.Y } else { $screen.Top + 24 }
     if ($y -lt $screen.Top) { $y = $screen.Top }
     if (($y + $height) -gt $screen.Bottom) { $height = $screen.Bottom - $y - 8 }
     $Form.Size = New-Object System.Drawing.Size($width, $height)
@@ -124,6 +193,38 @@ function Stop-RunningRequest {
     $script:TaihState = $null
 }
 
+function Apply-PanelCommand {
+    param($ModeBox, $CommandBox, $OutputBox, $StatusLabel, $RunButton, $StyleBox, $RulesBox, $HistoryBox)
+    try {
+        if (-not (Test-Path -LiteralPath $script:TaihCommandFile)) { return }
+        $file = Get-Item -LiteralPath $script:TaihCommandFile
+        if ($file.LastWriteTimeUtc -le $script:TaihLastCommandStamp) { return }
+        $script:TaihLastCommandStamp = $file.LastWriteTimeUtc
+        $payload = Get-Content -LiteralPath $script:TaihCommandFile -Raw | ConvertFrom-Json
+        $text = ""
+        if ($payload.inputFile -and (Test-Path -LiteralPath $payload.inputFile)) {
+            $text = [System.IO.File]::ReadAllText([string]$payload.inputFile, [System.Text.Encoding]::UTF8)
+            Remove-Item -LiteralPath ([string]$payload.inputFile) -Force -ErrorAction SilentlyContinue
+        }
+        if ($script:TaihProcess -and -not $script:TaihProcess.HasExited) {
+            Stop-RunningRequest
+            $RunButton.Enabled = $true
+            $RunButton.Text = L '\u6267\u884c'
+            $OutputBox.Clear()
+        }
+        if ($payload.mode) { Select-ComboByPrefix -Combo $ModeBox -Prefix ([string]$payload.mode) }
+        $CommandBox.Text = $text
+        $StatusLabel.Text = L '\u5df2\u63a5\u6536\u65b0\u547d\u4ee4'
+        $form.Activate()
+        [TaihPanelWin32]::SetForegroundWindow($form.Handle) | Out-Null
+        if ($text.Trim()) {
+            Start-PanelRequest -ModeBox $ModeBox -StyleBox $StyleBox -CommandBox $CommandBox -RulesBox $RulesBox -OutputBox $OutputBox -StatusLabel $StatusLabel -RunButton $RunButton -HistoryBox $HistoryBox
+        }
+    } catch {
+        $StatusLabel.Text = L '\u8bfb\u53d6\u65b0\u547d\u4ee4\u5931\u8d25'
+    }
+}
+
 function Start-PanelRequest {
     param($ModeBox, $StyleBox, $CommandBox, $RulesBox, $OutputBox, $StatusLabel, $RunButton, $HistoryBox)
 
@@ -139,9 +240,9 @@ function Start-PanelRequest {
         return
     }
 
-    $modeValue = [string]$ModeBox.SelectedItem
+    $modeValue = To-ModeValue ([string]$ModeBox.SelectedItem)
     if (-not $modeValue) { $modeValue = "explain" }
-    $styleValue = [string]$StyleBox.SelectedItem
+    $styleValue = To-StyleValue ([string]$StyleBox.SelectedItem)
     if (-not $styleValue) { $styleValue = "brief" }
     $rules = [string]$RulesBox.Text
     $rulesFile = [System.IO.Path]::GetTempFileName()
@@ -218,6 +319,12 @@ function Start-PanelRequest {
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+Ensure-Win32
+New-Item -ItemType Directory -Path $script:TaihPanelDir -Force | Out-Null
+Set-Content -LiteralPath $script:TaihPidFile -Value $PID -Encoding ASCII
+if (Test-Path -LiteralPath $script:TaihCommandFile) {
+    try { $script:TaihLastCommandStamp = (Get-Item -LiteralPath $script:TaihCommandFile).LastWriteTimeUtc } catch {}
+}
 
 $settings = Read-Settings
 $bg = [System.Drawing.Color]::FromArgb(12, 12, 12)
@@ -236,6 +343,9 @@ $form.MinimumSize = New-Object System.Drawing.Size(420, 520)
 $form.KeyPreview = $true
 $form.Add_KeyDown({ if ($_.KeyCode -eq "Escape") { $form.Close() } })
 $form.Add_FormClosing({ Stop-RunningRequest })
+$form.Add_FormClosed({
+    Remove-Item -LiteralPath $script:TaihPidFile, $script:TaihCommandFile -Force -ErrorAction SilentlyContinue
+})
 
 $root = New-Object System.Windows.Forms.TableLayoutPanel
 $root.Dock = "Fill"
@@ -265,21 +375,21 @@ $top.Padding = New-Object System.Windows.Forms.Padding(8, 4, 8, 4)
 
 $modeBox = New-Object System.Windows.Forms.ComboBox
 $modeBox.DropDownStyle = "DropDownList"
-[void]$modeBox.Items.Add("explain")
-[void]$modeBox.Items.Add("fix")
-[void]$modeBox.Items.Add("complete")
-$modeBox.SelectedItem = $Mode
-if (-not $modeBox.SelectedItem) { $modeBox.SelectedIndex = 0 }
+[void]$modeBox.Items.Add((L 'explain \uff08\u89e3\u6790\u547d\u4ee4\uff09'))
+[void]$modeBox.Items.Add((L 'fix \uff08\u8bca\u65ad\u62a5\u9519\uff09'))
+[void]$modeBox.Items.Add((L 'complete \uff08\u8865\u5168\u547d\u4ee4\uff09'))
+Select-ComboByPrefix -Combo $modeBox -Prefix $Mode
+if ($modeBox.SelectedIndex -lt 0) { $modeBox.SelectedIndex = 0 }
 $modeBox.Dock = "Fill"
 
 $styleBox = New-Object System.Windows.Forms.ComboBox
 $styleBox.DropDownStyle = "DropDownList"
-[void]$styleBox.Items.Add("brief")
-[void]$styleBox.Items.Add("standard")
-[void]$styleBox.Items.Add("examples")
-[void]$styleBox.Items.Add("custom")
-$styleBox.SelectedItem = [string]$settings.style
-if (-not $styleBox.SelectedItem) { $styleBox.SelectedIndex = 0 }
+[void]$styleBox.Items.Add((L 'brief \uff08\u7b80\u6d01\uff09'))
+[void]$styleBox.Items.Add((L 'standard \uff08\u6807\u51c6\uff09'))
+[void]$styleBox.Items.Add((L 'examples \uff08\u793a\u4f8b\u4f18\u5148\uff09'))
+[void]$styleBox.Items.Add((L 'custom \uff08\u6309\u89c4\u5219\uff09'))
+Select-ComboByPrefix -Combo $styleBox -Prefix ([string]$settings.style)
+if ($styleBox.SelectedIndex -lt 0) { $styleBox.SelectedIndex = 0 }
 $styleBox.Dock = "Fill"
 
 $commandBox = New-Object System.Windows.Forms.TextBox
@@ -401,6 +511,21 @@ $close.Add_Click({ $form.Close() })
 
 Move-PanelNearTerminal -Form $form
 [void]$form.Show()
+
+$followTimer = New-Object System.Windows.Forms.Timer
+$followTimer.Interval = 300
+$followTimer.Add_Tick({ Move-PanelNearTerminal -Form $form })
+$followTimer.Start()
+$form.Add_FormClosed({ try { $followTimer.Stop(); $followTimer.Dispose() } catch {} })
+
+$commandTimer = New-Object System.Windows.Forms.Timer
+$commandTimer.Interval = 300
+$commandTimer.Add_Tick({
+    Apply-PanelCommand -ModeBox $modeBox -CommandBox $commandBox -OutputBox $output -StatusLabel $status -RunButton $run -StyleBox $styleBox -RulesBox $rulesBox -HistoryBox $historyBox
+})
+$commandTimer.Start()
+$form.Add_FormClosed({ try { $commandTimer.Stop(); $commandTimer.Dispose() } catch {} })
+
 if ($commandBox.Text.Trim()) {
     Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox
 }
