@@ -64,7 +64,7 @@ export async function requestCommandHelp(config, prompt) {
         // Keep raw detail.
       }
       if (response.status === 401) {
-        detail += "。请设置有效的 OPENAI_API_KEY；Codex 登录 token 通常不能当作 API key 使用。";
+        detail += ". Set a valid OPENAI_API_KEY. Codex login tokens usually cannot be used as API keys.";
       }
       throw new Error(`API HTTP ${response.status}: ${detail}`);
     }
@@ -74,6 +74,82 @@ export async function requestCommandHelp(config, prompt) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function requestCommandHelpTextStream(config, prompt, onText) {
+  if (!config.apiKey) {
+    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json.");
+  }
+
+  const response = await fetch(responsesUrl(config.baseUrl), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      input: [
+        { role: "system", content: [{ type: "input_text", text: prompt.system }] },
+        { role: "user", content: [{ type: "input_text", text: prompt.user }] }
+      ],
+      stream: true
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`API HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/event-stream")) {
+    const raw = await response.text();
+    try {
+      const parsed = JSON.parse(raw);
+      const text = parseOutputText(parsed);
+      if (text) onText(text);
+      return text;
+    } catch {
+      if (raw) onText(raw);
+      return raw;
+    }
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() || "";
+
+    for (const event of events) {
+      for (const line of event.split(/\r?\n/)) {
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          const eventType = String(parsed.type || "");
+          const delta = eventType.includes("delta")
+            ? (parsed.delta || parsed.text || "")
+            : (parsed.delta && !parsed.response ? parsed.delta : "");
+          if (typeof delta === "string" && delta) {
+            full += delta;
+            onText(delta);
+          }
+        } catch {
+          // Ignore non-JSON stream keepalives.
+        }
+      }
+    }
+  }
+
+  return full;
 }
 
 function list(value) {
@@ -98,7 +174,7 @@ function examples(value) {
 
 function normalizeResult(value) {
   return {
-    title: String(value.title || "命令助手"),
+    title: String(value.title || "\u547d\u4ee4\u52a9\u624b"),
     summary: String(value.summary || ""),
     confidence: String(value.confidence || "medium"),
     completion: String(value.completion || ""),

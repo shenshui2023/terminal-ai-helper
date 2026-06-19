@@ -1,0 +1,59 @@
+{
+  "name": "terminal-ai-helper",
+  "displayName": "Terminal AI Helper",
+  "description": "Explain selected terminal commands and errors with terminal-ai-helper.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:terminalAiHelper.explainSelection",
+    "onCommand:terminalAiHelper.fixSelection",
+    "onCommand:terminalAiHelper.explainClipboard"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Terminal AI Helper",
+      "properties": {
+        "terminalAiHelper.cliPath": {
+          "type": "string",
+          "default": "E:\\\\3.13-aliyun-codex\\\\5.2\\\\terminal-ai-helper\\\\bin\\\\taih.js",
+          "description": "Path to taih.js"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "terminalAiHelper.explainSelection",
+        "title": "Terminal AI Helper: Explain Selection"
+      },
+      {
+        "command": "terminalAiHelper.fixSelection",
+        "title": "Terminal AI Helper: Diagnose Selection"
+      },
+      {
+        "command": "terminalAiHelper.explainClipboard",
+        "title": "Terminal AI Helper: Explain Clipboard"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "terminalAiHelper.explainSelection",
+          "group": "navigation@90",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "terminalAiHelper.fixSelection",
+          "group": "navigation@91",
+          "when": "editorHasSelection"
+        }
+      ]
+    }
+  }
+}
