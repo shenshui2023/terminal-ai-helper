@@ -115,6 +115,29 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style bri
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style custom --instructions-file .\my-rules.txt -- "ssh <用户名>@<主机>"
 ```
 
+面板左侧会显示最近历史，点击历史项会回填命令；如果历史里保存了输出，也会直接显示。
+
+缓存分两层：
+
+- `git`、`ssh`、`docker` 这类常见命令在 `brief explain` 下会先走本地快速解释，首次也不用等 API。
+- 其他命令的流式结果会写入本地缓存；再次查询相同命令和相同输出规则时会直接返回缓存。
+
+## 系统托盘常驻
+
+安装开机自启托盘：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\install-tray-startup.ps1
+```
+
+立即启动托盘：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\tray.ps1
+```
+
+托盘可以直接打开面板、解释剪贴板、诊断剪贴板，并启动 SSH helper server。这样即使当前 PowerShell 会话没有加载快捷键，也可以使用主要功能。
+
 ## SSH 远端使用
 
 进入 SSH 会话后，本地 PowerShell 快捷键不会再接管命令行，因为当前输入已经由远端 shell 处理。

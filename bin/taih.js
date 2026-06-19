@@ -6,6 +6,7 @@ import { buildPlainPrompt, buildPrompt } from "../src/prompts.js";
 import { renderHuman, renderJson, renderRaw } from "../src/render.js";
 import { readClipboard, writeClipboard } from "../src/clipboard.js";
 import { appendHistory, clearCache, getCache, readHistory, setCache } from "../src/store.js";
+import { getLocalHelp } from "../src/local-help.js";
 
 const args = process.argv.slice(2);
 
@@ -150,13 +151,31 @@ async function main() {
 
   const shell = process.env.TAIH_SHELL || process.env.ComSpec || "terminal";
   const extraInstructions = instructionsFile ? await readInstructions(instructionsFile) : (process.env.TAIH_EXTRA_INSTRUCTIONS || "");
+  const localHelp = process.env.TAIH_DISABLE_LOCAL_HELP === "1" ? null : getLocalHelp({ mode, text, outputStyle });
+  if (localHelp && !asJson && !asRaw && !noCache) {
+    const output = renderHuman(localHelp, { style: outputStyle });
+    appendHistory({ mode, text, source, cacheHit: true, title: localHelp.title, summary: localHelp.summary, output });
+    if (copyOutput) writeClipboard(output);
+    console.log(output);
+    return;
+  }
   if ((stream || String(outputStyle).toLowerCase() === "custom") && !asJson && !asRaw) {
+    const cacheMode = `stream:${mode}:${outputStyle}`;
+    const cacheText = `${text}\0${extraInstructions}`;
+    const cached = noCache ? null : getCache(cacheMode, cacheText);
+    if (cached?.text) {
+      process.stdout.write(cached.text);
+      if (!cached.text.endsWith("\n")) process.stdout.write("\n");
+      appendHistory({ mode, text, source, cacheHit: true, title: "stream-cache", summary: "cached stream output", output: cached.text });
+      return;
+    }
     const prompt = buildPlainPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
     const started = Date.now();
     let full = "";
     full = await requestCommandHelpTextStream(config, prompt, (chunk) => process.stdout.write(chunk));
     if (!full.endsWith("\n")) process.stdout.write("\n");
-    appendHistory({ mode, text, source, cacheHit: false, title: "stream", summary: `streamed in ${((Date.now() - started) / 1000).toFixed(1)}s` });
+    if (!noCache && full.trim()) setCache(cacheMode, cacheText, { text: full });
+    appendHistory({ mode, text, source, cacheHit: false, title: "stream", summary: `streamed in ${((Date.now() - started) / 1000).toFixed(1)}s`, output: full });
     return;
   }
 

@@ -6,10 +6,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $profilePath = Join-Path $root "powershell\taih-profile.ps1"
 $panelPath = Join-Path $root "powershell\panel.ps1"
+$trayInstallPath = Join-Path $root "powershell\install-tray-startup.ps1"
 
 Write-Host "test: parsing PowerShell profile"
 $parseErrors = $null
-foreach ($path in @($profilePath, $panelPath)) {
+foreach ($path in @($profilePath, $panelPath, $trayInstallPath)) {
     $parseErrors = $null
     [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $path -Raw), [ref]$parseErrors) | Out-Null
     if ($parseErrors) {

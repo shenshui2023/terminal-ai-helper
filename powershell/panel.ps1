@@ -60,6 +60,30 @@ function Save-Settings {
         Set-Content -LiteralPath $script:TaihSettingsPath -Encoding UTF8
 }
 
+function Read-HistoryItems {
+    try {
+        $json = & node $script:TaihCli history --json
+        if (-not $json) { return @() }
+        return @($json | ConvertFrom-Json)
+    } catch {
+        return @()
+    }
+}
+
+function Refresh-HistoryList {
+    param($HistoryBox)
+    if (-not $HistoryBox) { return }
+    $script:TaihHistoryItems = @(Read-HistoryItems)
+    $HistoryBox.Items.Clear()
+    foreach ($item in $script:TaihHistoryItems) {
+        $text = [string]$item.text
+        $text = ($text -replace '\s+', ' ').Trim()
+        if ($text.Length -gt 54) { $text = $text.Substring(0, 54) + "..." }
+        $prefix = if ($item.cacheHit) { "[cache]" } else { "[ai]" }
+        [void]$HistoryBox.Items.Add("$prefix [$($item.mode)] $text")
+    }
+}
+
 function Move-PanelNearTerminal {
     param($Form)
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
@@ -101,7 +125,7 @@ function Stop-RunningRequest {
 }
 
 function Start-PanelRequest {
-    param($ModeBox, $StyleBox, $CommandBox, $RulesBox, $OutputBox, $StatusLabel, $RunButton)
+    param($ModeBox, $StyleBox, $CommandBox, $RulesBox, $OutputBox, $StatusLabel, $RunButton, $HistoryBox)
 
     if ($script:TaihProcess -and -not $script:TaihProcess.HasExited) {
         $StatusLabel.Text = L '\u6b63\u5728\u6267\u884c\uff0c\u8bf7\u5148\u7b49\u5f85\u6216\u5173\u95ed\u7a97\u53e3'
@@ -127,7 +151,7 @@ function Start-PanelRequest {
 
     $stdoutFile = [System.IO.Path]::GetTempFileName()
     $stderrFile = [System.IO.Path]::GetTempFileName()
-    $args = @($script:TaihCli, $modeValue, "--stream", "--no-cache", "--style", $styleValue, "--instructions-file", $rulesFile, "--", $text)
+    $args = @($script:TaihCli, $modeValue, "--stream", "--style", $styleValue, "--instructions-file", $rulesFile, "--", $text)
     $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
 
     $OutputBox.Clear()
@@ -147,6 +171,7 @@ function Start-PanelRequest {
         OutputBox = $OutputBox
         StatusLabel = $StatusLabel
         RunButton = $RunButton
+        HistoryBox = $HistoryBox
     }
 
     $timer = New-Object System.Windows.Forms.Timer
@@ -182,6 +207,7 @@ function Start-PanelRequest {
         } else {
             $state.StatusLabel.Text = (L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + $seconds + (L ' \u79d2')
         }
+        Refresh-HistoryList -HistoryBox $state.HistoryBox
         Remove-Item -LiteralPath $state.StdoutFile, $state.StderrFile, $state.RulesFile -Force -ErrorAction SilentlyContinue
         try { $state.Process.Dispose() } catch {}
         $script:TaihProcess = $null
@@ -288,6 +314,23 @@ $output.Font = New-Object System.Drawing.Font("Consolas", 10)
 $output.WordWrap = $true
 $output.ScrollBars = "Vertical"
 
+$split = New-Object System.Windows.Forms.SplitContainer
+$split.Dock = "Fill"
+$split.Orientation = "Vertical"
+$split.SplitterDistance = 150
+$split.BackColor = $bg
+
+$historyBox = New-Object System.Windows.Forms.ListBox
+$historyBox.Dock = "Fill"
+$historyBox.BackColor = $surface
+$historyBox.ForeColor = $muted
+$historyBox.BorderStyle = "FixedSingle"
+$historyBox.Font = New-Object System.Drawing.Font("Consolas", 8.5)
+Refresh-HistoryList -HistoryBox $historyBox
+
+[void]$split.Panel1.Controls.Add($historyBox)
+[void]$split.Panel2.Controls.Add($output)
+
 $buttons = New-Object System.Windows.Forms.FlowLayoutPanel
 $buttons.Dock = "Fill"
 $buttons.FlowDirection = "RightToLeft"
@@ -327,12 +370,27 @@ $status.Padding = New-Object System.Windows.Forms.Padding(0, 6, 12, 0)
 [void]$root.Controls.Add($title, 0, 0)
 [void]$root.Controls.Add($top, 0, 1)
 [void]$root.Controls.Add($rulesBox, 0, 2)
-[void]$root.Controls.Add($output, 0, 3)
+[void]$root.Controls.Add($split, 0, 3)
 [void]$root.Controls.Add($buttons, 0, 4)
 [void]$form.Controls.Add($root)
 
-$run.Add_Click({ Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run })
-$commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run } })
+$run.Add_Click({ Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox })
+$commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox } })
+$historyBox.Add_SelectedIndexChanged({
+    $idx = $historyBox.SelectedIndex
+    if ($idx -ge 0 -and $idx -lt $script:TaihHistoryItems.Count) {
+        $item = $script:TaihHistoryItems[$idx]
+        $commandBox.Text = [string]$item.text
+        if ($item.mode) { $modeBox.SelectedItem = [string]$item.mode }
+        if ($item.output) {
+            $output.Text = [string]$item.output
+            $status.Text = L '\u5df2\u6253\u5f00\u5386\u53f2'
+        } else {
+            $output.Text = ([string]$item.summary)
+            $status.Text = L '\u5386\u53f2\u547d\u4ee4\u5df2\u586b\u5165'
+        }
+    }
+})
 $clip.Add_Click({
     $text = Get-Clipboard -Raw
     if ($text) { $commandBox.Text = $text }
@@ -344,6 +402,6 @@ $close.Add_Click({ $form.Close() })
 Move-PanelNearTerminal -Form $form
 [void]$form.Show()
 if ($commandBox.Text.Trim()) {
-    Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run
+    Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox
 }
 [System.Windows.Forms.Application]::Run($form)
