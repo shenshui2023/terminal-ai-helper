@@ -536,7 +536,15 @@ function Invoke-TerminalAiHelper {
 }
 
 function Show-TerminalAiUsage { Invoke-TerminalAiHelper -Mode explain -Text (Get-TerminalAiContext).Text; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
-function Show-TerminalAiUsageWindow { Invoke-TerminalAiHelper -Mode explain -Text (Get-TerminalAiContext).Text -Window; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
+function Show-TerminalAiUsageWindow {
+    $text = (Get-TerminalAiContext).Text
+    if ($text.Trim()) {
+        Invoke-TerminalAiHelper -Mode explain -Text $text -Window
+    } else {
+        Show-TerminalAiPanel
+    }
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+}
 function Show-TerminalAiFixWindow { Invoke-TerminalAiHelper -Mode fix -Text (Get-TerminalAiContext).Text -Window; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
 function Show-TerminalAiPanel { Initialize-TerminalAiPanel; Move-TerminalAiPanelNearTerminal; if (-not $script:TaihPanel.Visible) { $script:TaihPanel.Show() }; [void]$script:TaihPanel.Activate() }
 
@@ -589,19 +597,21 @@ function Invoke-TerminalAiClipboard {
 
 Set-PSReadLineKeyHandler -Chord "Alt+/" -ScriptBlock { Show-TerminalAiUsage }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+/" -ScriptBlock { Show-TerminalAiUsageWindow }
+Set-PSReadLineKeyHandler -Chord "Alt+?" -ScriptBlock { Show-TerminalAiPanel }
 Set-PSReadLineKeyHandler -Chord "Ctrl+Spacebar" -ScriptBlock { Complete-TerminalAiCommand }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+F" -ScriptBlock { Show-TerminalAiFixWindow }
 
-Set-Alias taih-current Show-TerminalAiUsage
-Set-Alias taih-popup Show-TerminalAiUsageWindow
-Set-Alias taih-panel Show-TerminalAiPanel
-Set-Alias taih-clip Invoke-TerminalAiClipboard
-Set-Alias taih-fix Show-TerminalAiFixWindow
+Set-Alias taih-current Show-TerminalAiUsage -Force
+Set-Alias taih-popup Show-TerminalAiUsageWindow -Force
+Set-Alias taih-panel Show-TerminalAiPanel -Force
+Set-Alias taih-clip Invoke-TerminalAiClipboard -Force
+Set-Alias taih-fix Show-TerminalAiFixWindow -Force
 
 Write-Host "terminal-ai-helper loaded:" -ForegroundColor DarkCyan
 Write-Host "  Alt+/        explain selected text or current command"
-Write-Host "  Alt+Shift+/  open or update the docked manager panel"
+Write-Host "  Alt+?        open or update the docked manager panel"
+Write-Host "  Alt+Shift+/  same as Alt+? on many keyboards"
 Write-Host "  Ctrl+Space   insert AI completion"
 Write-Host "  Alt+Shift+C  copy AI completion"
 Write-Host "  Alt+Shift+F  diagnose selected text or current command"
