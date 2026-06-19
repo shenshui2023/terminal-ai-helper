@@ -256,13 +256,13 @@ function Show-TerminalAiPanel {
     $mode.SelectedIndex = 0
     $mode.Dock = "Fill"
 
-    $input = New-Object System.Windows.Forms.TextBox
-    $input.Dock = "Fill"
-    $input.Font = New-Object System.Drawing.Font("Consolas", 10)
-    $input.BackColor = $surface2
-    $input.ForeColor = $fg
-    $input.BorderStyle = "FixedSingle"
-    $input.Text = $InitialText
+    $commandBox = New-Object System.Windows.Forms.TextBox
+    $commandBox.Dock = "Fill"
+    $commandBox.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $commandBox.BackColor = $surface2
+    $commandBox.ForeColor = $fg
+    $commandBox.BorderStyle = "FixedSingle"
+    $commandBox.Text = $InitialText
 
     $run = New-Object System.Windows.Forms.Button
     $run.Text = L '\u6267\u884c'
@@ -279,7 +279,7 @@ function Show-TerminalAiPanel {
     $clip.FlatStyle = "Flat"
 
     [void]$inputPanel.Controls.Add($mode, 0, 0)
-    [void]$inputPanel.Controls.Add($input, 1, 0)
+    [void]$inputPanel.Controls.Add($commandBox, 1, 0)
     [void]$inputPanel.Controls.Add($run, 2, 0)
     [void]$inputPanel.Controls.Add($clip, 3, 0)
 
@@ -357,9 +357,18 @@ function Show-TerminalAiPanel {
     [void]$root.Controls.Add($buttons, 0, 3)
     [void]$form.Controls.Add($root)
 
-    $run.Add_Click({ Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
-    $input.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history } })
-    $clip.Add_Click({ $input.Text = Get-Clipboard -Raw; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
+    $run.Add_Click({ Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
+    $commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history } })
+    $clip.Add_Click({
+        $clipText = Get-Clipboard -Raw
+        if (-not $clipText -or -not $clipText.Trim()) {
+            $status.Text = L '\u526a\u8d34\u677f\u4e3a\u7a7a'
+            $output.Text = L '\u526a\u8d34\u677f\u4e3a\u7a7a\uff0c\u8bf7\u5148\u590d\u5236\u547d\u4ee4\u6216\u5728\u8f93\u5165\u6846\u624b\u52a8\u8f93\u5165\u3002'
+            return
+        }
+        $commandBox.Text = $clipText
+        Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history
+    })
     $close.Add_Click({ $form.Close() })
     $copy.Add_Click({ Set-Clipboard -Value $output.Text; $status.Text = L '\u5df2\u590d\u5236' })
     $clear.Add_Click({ $output.Clear(); $status.Text = L '\u5df2\u6e05\u7a7a' })
@@ -385,7 +394,7 @@ SSH:
         $idx = $history.SelectedIndex
         if ($idx -ge 0 -and $idx -lt $script:TaihHistoryItems.Count) {
             $item = $script:TaihHistoryItems[$idx]
-            $input.Text = $item.Text
+            $commandBox.Text = $item.Text
             $output.Text = $item.Output
             $status.Text = (L '\u5386\u53f2\uff1a') + $item.Mode
         }

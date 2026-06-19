@@ -30,7 +30,7 @@ Options:
 Environment:
   TAIH_BASE_URL        API base URL, default https://qyapi.cjyyswq.com
   TAIH_MODEL           Model name, default gpt-5.5
-  OPENAI_API_KEY       API key; otherwise read %USERPROFILE%\\.codex\\auth.json
+  OPENAI_API_KEY       API key; Windows user env and %USERPROFILE%\\.codex\\auth.json are also checked
 `;
 }
 

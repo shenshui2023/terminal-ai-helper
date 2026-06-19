@@ -24,7 +24,7 @@ function parseJsonObject(text) {
 
 export async function requestCommandHelp(config, prompt) {
   if (!config.apiKey) {
-    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json.");
+    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");
   }
 
   const controller = new AbortController();
@@ -64,7 +64,7 @@ export async function requestCommandHelp(config, prompt) {
         // Keep raw detail.
       }
       if (response.status === 401) {
-        detail += ". Set a valid OPENAI_API_KEY. Codex login tokens usually cannot be used as API keys.";
+        detail += ". Set a valid OPENAI_API_KEY. Codex login tokens are not used as API keys.";
       }
       throw new Error(`API HTTP ${response.status}: ${detail}`);
     }
@@ -78,7 +78,7 @@ export async function requestCommandHelp(config, prompt) {
 
 export async function requestCommandHelpTextStream(config, prompt, onText) {
   if (!config.apiKey) {
-    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json.");
+    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");
   }
 
   const response = await fetch(responsesUrl(config.baseUrl), {
