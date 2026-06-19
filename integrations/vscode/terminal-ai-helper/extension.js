@@ -15,13 +15,13 @@ function runHelper(mode, text) {
   const config = vscode.workspace.getConfiguration("terminalAiHelper");
   const cliPath = config.get("cliPath");
   if (!cliPath) {
-    vscode.window.showErrorMessage("terminalAiHelper.cliPath is not configured.");
+    vscode.window.showErrorMessage("尚未配置 terminalAiHelper.cliPath。");
     return;
   }
 
-  if (!channel) channel = vscode.window.createOutputChannel("Terminal AI Helper");
+  if (!channel) channel = vscode.window.createOutputChannel("终端 AI 助手");
   channel.show(true);
-  channel.appendLine(`Running ${mode}...`);
+  channel.appendLine(`正在执行 ${mode}...`);
   channel.appendLine("");
 
   const started = Date.now();
@@ -35,26 +35,26 @@ function runHelper(mode, text) {
   child.on("close", (code) => {
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
     channel.appendLine("");
-    channel.appendLine(`Done in ${seconds}s, exit code ${code}`);
+    channel.appendLine(`完成，用时 ${seconds} 秒，退出码 ${code}`);
   });
 }
 
 function activate(context) {
   context.subscriptions.push(vscode.commands.registerCommand("terminalAiHelper.explainSelection", () => {
     const text = getSelectionText();
-    if (!text) return vscode.window.showWarningMessage("No selected text.");
+    if (!text) return vscode.window.showWarningMessage("没有选中文本。");
     runHelper("explain", text);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand("terminalAiHelper.fixSelection", () => {
     const text = getSelectionText();
-    if (!text) return vscode.window.showWarningMessage("No selected text.");
+    if (!text) return vscode.window.showWarningMessage("没有选中文本。");
     runHelper("fix", text);
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand("terminalAiHelper.explainClipboard", async () => {
     const text = await vscode.env.clipboard.readText();
-    if (!text) return vscode.window.showWarningMessage("Clipboard is empty.");
+    if (!text) return vscode.window.showWarningMessage("剪贴板为空。");
     runHelper("explain", text);
   }));
 }

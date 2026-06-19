@@ -9,28 +9,28 @@ import { appendHistory, clearCache, getCache, readHistory, setCache } from "../s
 const args = process.argv.slice(2);
 
 function usage() {
-  return `Usage:
-  taih explain <command...>          Explain usage, risks, examples
-  taih complete [--json] <prefix...> Suggest completions for current command
-  taih fix [--json] <error...>       Explain an error and propose a fix
-  taih clipboard [mode]              Read clipboard and run explain/complete/fix
-  taih serve [--port 17888]          Run local HTTP helper for SSH reverse tunnels
-  taih history [--json]              Show recent command help history
-  taih cache clear                   Clear local response cache
-  taih doctor                        Check local configuration
+  return `用法:
+  taih explain <命令...>             解释命令用法、风险和示例
+  taih complete [--json] <前缀...>   根据当前输入补全命令
+  taih fix [--json] <报错...>        诊断报错并给出修复建议
+  taih clipboard [模式]              读取剪贴板并执行 explain/complete/fix
+  taih serve [--port 17888]          启动本地 HTTP helper，供 SSH 反向隧道使用
+  taih history [--json]              查看最近的命令帮助历史
+  taih cache clear                   清理本地缓存
+  taih doctor                        检查本地配置
 
-Options:
-  --clipboard                        Use clipboard text when no command text is provided
-  --copy                             Copy rendered output to clipboard
-  --json                             Print structured JSON
-  --no-cache                         Skip cache for this request
-  --raw                              Print only completion text, useful for shell integration
-  --stream                           Stream plain text output when the API supports SSE
+选项:
+  --clipboard                        没有命令文本时读取剪贴板
+  --copy                             把渲染后的结果复制到剪贴板
+  --json                             输出结构化 JSON
+  --no-cache                         本次请求跳过缓存
+  --raw                              只输出补全文本，方便 shell 集成
+  --stream                           API 支持 SSE 时流式输出纯文本
 
-Environment:
-  TAIH_BASE_URL        API base URL, default https://qyapi.cjyyswq.com
-  TAIH_MODEL           Model name, default gpt-5.5
-  OPENAI_API_KEY       API key; Windows user env and %USERPROFILE%\\.codex\\auth.json are also checked
+环境变量:
+  TAIH_BASE_URL        API 地址，默认 https://qyapi.cjyyswq.com
+  TAIH_MODEL           模型名，默认 gpt-5.5
+  OPENAI_API_KEY       API key；也会检查 Windows 用户环境变量和 %USERPROFILE%\\.codex\\auth.json
 `;
 }
 

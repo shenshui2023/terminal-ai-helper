@@ -1,7 +1,7 @@
 {
   "name": "terminal-ai-helper",
-  "displayName": "Terminal AI Helper",
-  "description": "Explain selected terminal commands and errors with terminal-ai-helper.",
+  "displayName": "终端 AI 助手",
+  "description": "用 terminal-ai-helper 解释选中的终端命令和报错。",
   "version": "0.1.0",
   "publisher": "local",
   "engines": {
@@ -18,27 +18,27 @@
   "main": "./extension.js",
   "contributes": {
     "configuration": {
-      "title": "Terminal AI Helper",
+      "title": "终端 AI 助手",
       "properties": {
         "terminalAiHelper.cliPath": {
           "type": "string",
           "default": "E:\\\\3.13-aliyun-codex\\\\5.2\\\\terminal-ai-helper\\\\bin\\\\taih.js",
-          "description": "Path to taih.js"
+          "description": "taih.js 的路径"
         }
       }
     },
     "commands": [
       {
         "command": "terminalAiHelper.explainSelection",
-        "title": "Terminal AI Helper: Explain Selection"
+        "title": "终端 AI 助手：解释选中文本"
       },
       {
         "command": "terminalAiHelper.fixSelection",
-        "title": "Terminal AI Helper: Diagnose Selection"
+        "title": "终端 AI 助手：诊断选中文本"
       },
       {
         "command": "terminalAiHelper.explainClipboard",
-        "title": "Terminal AI Helper: Explain Clipboard"
+        "title": "终端 AI 助手：解释剪贴板"
       }
     ],
     "menus": {
