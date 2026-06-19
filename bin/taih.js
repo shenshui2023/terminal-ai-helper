@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import fs from "node:fs";
 import { loadConfig } from "../src/config.js";
 import { requestCommandHelp, requestCommandHelpTextStream } from "../src/api.js";
 import { buildPlainPrompt, buildPrompt } from "../src/prompts.js";
@@ -26,6 +27,9 @@ function usage() {
   --no-cache                         本次请求跳过缓存
   --raw                              只输出补全文本，方便 shell 集成
   --stream                           API 支持 SSE 时流式输出纯文本
+  --style <brief|standard|examples|custom>
+                                      控制输出格式，面板默认使用 brief
+  --instructions-file <文件>          追加自定义输出规则或提示词
 
 环境变量:
   TAIH_BASE_URL        API 地址，默认 https://qyapi.cjyyswq.com
@@ -56,12 +60,19 @@ async function readStdinIfPiped() {
   return data.trim();
 }
 
+function readInstructions(filePath) {
+  if (!filePath) return "";
+  return fs.readFileSync(filePath, "utf8").trim();
+}
+
 async function main() {
   const asJson = takeFlag("--json");
   const asRaw = takeFlag("--raw");
   const noCache = takeFlag("--no-cache");
   const stream = takeFlag("--stream");
   const copyOutput = takeFlag("--copy");
+  const outputStyle = takeOption("--style", process.env.TAIH_OUTPUT_STYLE || "standard");
+  const instructionsFile = takeOption("--instructions-file", "");
   let fromClipboard = takeFlag("--clipboard");
   const port = Number(takeOption("--port", process.env.TAIH_PORT || 17888));
   let mode = args.shift();
@@ -138,8 +149,9 @@ async function main() {
   }
 
   const shell = process.env.TAIH_SHELL || process.env.ComSpec || "terminal";
-  if (stream && !asJson && !asRaw) {
-    const prompt = buildPlainPrompt({ mode, text, source, shell });
+  const extraInstructions = instructionsFile ? await readInstructions(instructionsFile) : (process.env.TAIH_EXTRA_INSTRUCTIONS || "");
+  if ((stream || String(outputStyle).toLowerCase() === "custom") && !asJson && !asRaw) {
+    const prompt = buildPlainPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
     const started = Date.now();
     let full = "";
     full = await requestCommandHelpTextStream(config, prompt, (chunk) => process.stdout.write(chunk));
@@ -148,7 +160,7 @@ async function main() {
     return;
   }
 
-  const prompt = buildPrompt({ mode, text, source, shell });
+  const prompt = buildPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
   let result = noCache ? null : getCache(mode, text);
   const cacheHit = Boolean(result);
   if (!result) {
@@ -157,7 +169,7 @@ async function main() {
   }
   appendHistory({ mode, text, source, cacheHit, title: result.title, summary: result.summary });
 
-  const output = asRaw ? renderRaw(result) : asJson ? renderJson(result) : renderHuman(result);
+  const output = asRaw ? renderRaw(result) : asJson ? renderJson(result) : renderHuman(result, { style: outputStyle });
   if (copyOutput) writeClipboard(output);
   console.log(output);
 }

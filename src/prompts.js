@@ -1,12 +1,12 @@
 const zh = {
-  user: "\u7528\u6237\u540d",
-  host: "\u4e3b\u673a",
-  port: "\u7aef\u53e3",
-  filePath: "\u6587\u4ef6\u8def\u5f84",
-  service: "\u670d\u52a1\u540d",
-  process: "\u8fdb\u7a0b\u540d",
-  package: "\u5305\u540d",
-  device: "\u8bbe\u5907\u5e8f\u5217\u53f7"
+  user: "用户名",
+  host: "主机",
+  port: "端口",
+  filePath: "文件路径",
+  service: "服务名",
+  process: "进程名",
+  package: "包名",
+  device: "设备序列号"
 };
 
 const placeholders = [
@@ -37,7 +37,39 @@ const schemaInstruction = `Return only compact JSON with this shape:
   "next_steps": ["actionable next step"]
 }`;
 
-export function buildPrompt({ mode, text, shell, source = "typed text" }) {
+function styleInstructions(outputStyle = "standard", extraInstructions = "") {
+  const style = String(outputStyle || "standard").toLowerCase();
+  const rules = {
+    brief: [
+      "Output must be short: at most 8 lines.",
+      "Use this order: purpose, common usage, at most 2 examples, risks if any.",
+      "Do not include long tables, exhaustive parameter lists, or background essays."
+    ],
+    standard: [
+      "Output should be practical and not verbose.",
+      "Prefer bullets over long paragraphs.",
+      "Include examples only when they clarify real usage."
+    ],
+    examples: [
+      "Focus on copyable examples.",
+      "Use placeholders for variable parts.",
+      "Explain each example in one short sentence."
+    ],
+    custom: [
+      "Follow the user's custom output rules exactly when they are safe.",
+      "If the answer would violate the custom rules, rewrite it until it matches the rules."
+    ]
+  }[style] || [];
+
+  const custom = String(extraInstructions || "").trim();
+  if (custom) {
+    rules.push("Custom output rules:");
+    rules.push(custom);
+  }
+  return rules;
+}
+
+export function buildPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
   const task = {
     explain: "Explain this terminal command. Include common usage, parameters, examples, and risks.",
     complete: "Complete the current terminal command prefix. Prefer a safe, conventional continuation. The completion field must contain only text to append after the prefix.",
@@ -55,6 +87,7 @@ export function buildPrompt({ mode, text, shell, source = "typed text" }) {
       "Do not replace placeholders with fake real values unless the user already provided the value.",
       "Every example must explain the command's purpose in the purpose field.",
       "If the input came from a selected fragment, explain that fragment as the active context.",
+      ...styleInstructions(outputStyle, extraInstructions),
       schemaInstruction
     ].join("\n"),
     user: [
@@ -68,7 +101,7 @@ export function buildPrompt({ mode, text, shell, source = "typed text" }) {
   };
 }
 
-export function buildPlainPrompt({ mode, text, shell, source = "typed text" }) {
+export function buildPlainPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
   const task = {
     explain: "解释这条终端命令的作用、常规用法、参数、示例和风险。",
     complete: "补全当前终端命令。先给出建议补全文本，再简短说明原因。",
@@ -80,9 +113,10 @@ export function buildPlainPrompt({ mode, text, shell, source = "typed text" }) {
       "你是资深终端命令助手，熟悉 PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、ADB 和嵌入式开发。",
       "用简体中文回答。",
       "输出要清晰、可扫读、实用。",
-      "示例中的可变内容必须用尖括号占位，例如 <用户名>、<主机>、<端口>、<文件路径>、<服务名>、<进程名>、<包名>。",
+      `示例中的可变内容必须用尖括号占位，例如 ${placeholders}。`,
       "每条示例都要说明作用。",
-      "如果命令有删除、覆盖、停止服务等风险，必须明确提醒。"
+      "如果命令有删除、覆盖、停止服务等风险，必须明确提醒。",
+      ...styleInstructions(outputStyle, extraInstructions)
     ].join("\n"),
     user: [
       `模式: ${mode}`,

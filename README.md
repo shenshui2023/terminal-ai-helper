@@ -12,6 +12,8 @@ terminal-ai-helper 是一个面向终端命令的 AI 助手。它可以解释命
 - 根据当前输入补全常见命令。
 - 诊断命令报错并给出修复建议。
 - 提供 PowerShell 快捷键和桌面管理面板。
+- 管理面板以独立进程运行，当前终端不会被窗口占住。
+- 支持 `brief`、`standard`、`examples`、`custom` 输出风格和自定义输出规则。
 - 支持复制剪贴板内容后直接解释或诊断。
 - 支持本地 HTTP helper，方便 SSH 远端通过反向隧道使用。
 - API key 不写入源码，默认读取用户环境变量或本地配置。
@@ -87,7 +89,31 @@ taih-clip -Mode explain -Copy # 解释剪贴板内容并把结果复制回剪贴
 2. 如果没有选中，使用当前光标前的命令。
 3. 如果要解释终端历史输出，先选中输出并按 `Ctrl+C`，再运行 `taih-clip` 或 `taih-clip -Window`。
 
-管理面板会在后台执行 API 请求，不会因为等待中转站响应而卡死。输出内容会逐步显示，完成后显示耗时。
+管理面板会作为独立 PowerShell 窗口运行，并尽量拼接到当前终端窗口左侧；如果左侧空间不足，会贴到终端另一侧。当前终端只负责唤起面板，之后可以继续输入和执行命令。
+
+面板默认使用 `brief` 输出风格，避免解释太长。顶部可以选择：
+
+| 风格 | 适合场景 |
+| --- | --- |
+| `brief` | 日常查命令，最多保留关键用法和少量示例 |
+| `standard` | 需要常规解释、风险和下一步 |
+| `examples` | 只想看可复制示例 |
+| `custom` | 使用你在规则框里写的格式要求 |
+
+规则框可以写自定义提示词，例如：
+
+```text
+只输出三段：作用、最常用参数、两个示例。
+不要输出长表格。
+示例必须使用 <文件路径>、<主机> 这类占位符。
+```
+
+CLI 也支持同一套格式控制：
+
+```powershell
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style brief -- "git status"
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style custom --instructions-file .\my-rules.txt -- "ssh <用户名>@<主机>"
+```
 
 ## SSH 远端使用
 

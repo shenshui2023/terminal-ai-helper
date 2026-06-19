@@ -5,13 +5,17 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $profilePath = Join-Path $root "powershell\taih-profile.ps1"
+$panelPath = Join-Path $root "powershell\panel.ps1"
 
 Write-Host "test: parsing PowerShell profile"
 $parseErrors = $null
-[System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $profilePath -Raw), [ref]$parseErrors) | Out-Null
-if ($parseErrors) {
-    $parseErrors | Format-List *
-    throw "PowerShell parse failed"
+foreach ($path in @($profilePath, $panelPath)) {
+    $parseErrors = $null
+    [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $path -Raw), [ref]$parseErrors) | Out-Null
+    if ($parseErrors) {
+        $parseErrors | Format-List *
+        throw "PowerShell parse failed: $path"
+    }
 }
 
 Write-Host "test: loading profile"
@@ -30,6 +34,18 @@ foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip"
     if (-not (Get-Alias $aliasName -ErrorAction SilentlyContinue)) {
         throw "missing alias: $aliasName"
     }
+}
+
+Write-Host "test: panel launcher is non-blocking"
+$env:TAIH_TEST_NO_PANEL_START = "1"
+try {
+    $script:TaihLastPanelArgs = $null
+    Show-TerminalAiPanel -InitialText "git status" -Mode explain
+    if (-not $script:TaihLastPanelArgs -or ($script:TaihLastPanelArgs -notcontains "-File") -or ($script:TaihLastPanelArgs -notcontains $panelPath)) {
+        throw "panel launcher did not prepare independent panel process arguments"
+    }
+} finally {
+    Remove-Item Env:\TAIH_TEST_NO_PANEL_START -ErrorAction SilentlyContinue
 }
 
 function New-TestControls {

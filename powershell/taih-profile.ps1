@@ -537,6 +537,63 @@ SSH:
     [void]$form.ShowDialog()
 }
 
+function Get-TerminalAiForegroundRect {
+    try {
+        if (-not ("TaihWin32" -as [type])) {
+            Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class TaihWin32 {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+  public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
+}
+"@
+        }
+        $hwnd = [TaihWin32]::GetForegroundWindow()
+        $rect = New-Object TaihWin32+RECT
+        if ([TaihWin32]::GetWindowRect($hwnd, [ref]$rect)) {
+            return [pscustomobject]@{
+                X = $rect.Left
+                Y = $rect.Top
+                W = $rect.Right - $rect.Left
+                H = $rect.Bottom - $rect.Top
+            }
+        }
+    } catch {}
+    return [pscustomobject]@{ X = -1; Y = -1; W = -1; H = -1 }
+}
+
+function Show-TerminalAiPanel {
+    param([string]$InitialText = "", [string]$Mode = "explain")
+
+    $panelPath = Join-Path $script:TaihRoot "powershell\panel.ps1"
+    if (-not (Test-Path -LiteralPath $panelPath)) {
+        Write-Host ((L '\u627e\u4e0d\u5230\u9762\u677f\u811a\u672c\uff1a') + $panelPath) -ForegroundColor Red
+        return
+    }
+
+    $inputFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($inputFile, [string]$InitialText, [System.Text.Encoding]::UTF8)
+    $rect = Get-TerminalAiForegroundRect
+    $args = @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $panelPath,
+        "-InputFile", $inputFile,
+        "-Mode", $Mode,
+        "-AnchorX", [string]$rect.X,
+        "-AnchorY", [string]$rect.Y,
+        "-AnchorW", [string]$rect.W,
+        "-AnchorH", [string]$rect.H
+    )
+    if ($env:TAIH_TEST_NO_PANEL_START -eq "1") {
+        $script:TaihLastPanelArgs = $args
+        return
+    }
+    Start-Process -FilePath "powershell" -ArgumentList $args -WindowStyle Hidden | Out-Null
+}
+
 function Invoke-TerminalAiHelper {
     param(
         [ValidateSet("explain", "complete", "fix")]
@@ -549,7 +606,7 @@ function Invoke-TerminalAiHelper {
     if (-not $Text.Trim()) { Write-Host (L '\u5f53\u524d\u547d\u4ee4\u4e3a\u7a7a\u3002') -ForegroundColor Yellow; return }
 
     if ($Window) {
-        Show-TerminalAiPanel -InitialText $Text
+        Show-TerminalAiPanel -InitialText $Text -Mode $Mode
         return
     }
 
@@ -568,8 +625,8 @@ function Invoke-TerminalAiHelper {
 }
 
 function Show-TerminalAiUsage { Invoke-TerminalAiHelper -Mode explain -Text (Get-TerminalAiContext); [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
-function Show-TerminalAiUsageWindow { Show-TerminalAiPanel -InitialText (Get-TerminalAiContext); [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
-function Show-TerminalAiFixWindow { $text = Get-TerminalAiContext; Show-TerminalAiPanel -InitialText $text; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
+function Show-TerminalAiUsageWindow { Show-TerminalAiPanel -InitialText (Get-TerminalAiContext) -Mode explain; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
+function Show-TerminalAiFixWindow { $text = Get-TerminalAiContext; Show-TerminalAiPanel -InitialText $text -Mode fix; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
 function Complete-TerminalAiCommand {
     $text = Get-TerminalAiContext
     if (-not $text.Trim()) { return }

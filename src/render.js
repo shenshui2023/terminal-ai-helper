@@ -35,15 +35,20 @@ function exampleSection(items) {
   return lines.join("\n");
 }
 
-export function renderHuman(result) {
+export function renderHuman(result, options = {}) {
+  const style = String(options.style || "standard").toLowerCase();
+  const usage = style === "brief" ? result.usage.slice(0, 2) : result.usage;
+  const examples = style === "brief" ? result.examples.slice(0, 2) : result.examples;
+  const risks = style === "brief" ? result.risks.slice(0, 1) : result.risks;
+  const nextSteps = style === "brief" ? result.next_steps.slice(0, 1) : result.next_steps;
   const lines = [];
   lines.push(`\n${result.title}`);
   if (result.summary) lines.push(result.summary);
-  lines.push(`${labels.confidence}: ${result.confidence}`);
+  if (style !== "brief") lines.push(`${labels.confidence}: ${result.confidence}`);
   if (result.completion) lines.push(`\n${labels.completion}: ${result.completion}`);
-  lines.push(section(labels.usage, result.usage));
-  lines.push(exampleSection(result.examples));
-  lines.push(section(labels.risks, result.risks));
-  lines.push(section(labels.nextSteps, result.next_steps));
+  lines.push(section(labels.usage, usage));
+  lines.push(exampleSection(examples));
+  lines.push(section(labels.risks, risks));
+  lines.push(section(labels.nextSteps, nextSteps));
   return lines.filter(Boolean).join("\n");
 }
