@@ -99,6 +99,35 @@ function Invoke-TerminalAiText {
     return (Invoke-TerminalAiNode -Arguments $args)
 }
 
+function Get-TerminalAiControlText {
+    param($Control)
+    if ($null -eq $Control) { return "" }
+    try {
+        $value = $Control.Text
+        if ($null -eq $value) { return "" }
+        return [string]$value
+    } catch {
+        return ""
+    }
+}
+
+function Add-TerminalAiOutputText {
+    param($OutputBox, [string]$Text)
+    if ($null -eq $OutputBox -or $OutputBox.IsDisposed -or -not $Text) { return }
+    $append = [System.Action[string]]{
+        param($value)
+        if ($OutputBox.IsDisposed) { return }
+        $OutputBox.AppendText($value)
+        $OutputBox.SelectionStart = $OutputBox.TextLength
+        $OutputBox.ScrollToCaret()
+    }
+    if ($OutputBox.InvokeRequired -and $OutputBox.IsHandleCreated) {
+        [void]$OutputBox.BeginInvoke($append, [object[]]@($Text))
+        return
+    }
+    $append.Invoke($Text)
+}
+
 function Add-TerminalAiHistory {
     param([string]$Mode, [string]$Text, [string]$Output)
     $preview = ($Text -replace '\s+', ' ').Trim()
@@ -128,13 +157,19 @@ function Move-TerminalAiFormRight {
 }
 
 function Invoke-TerminalAiPanelRequest {
-    param($ModeBox, $InputBox, $OutputBox, $StatusLabel, $ProgressBar, $HistoryBox)
+    param($ModeBox, $InputBox, $OutputBox, $StatusLabel, $ProgressBar, $HistoryBox, $RunButton, $ClipButton)
 
     $mode = [string]$ModeBox.SelectedItem
     if (-not $mode) { $mode = "explain" }
-    $text = $InputBox.Text
+    $text = Get-TerminalAiControlText $InputBox
     if (-not $text.Trim()) {
         $StatusLabel.Text = L '\u8f93\u5165\u4e3a\u7a7a'
+        $OutputBox.Text = L '\u8f93\u5165\u4e3a\u7a7a\uff0c\u8bf7\u5728\u4e0a\u65b9\u8f93\u5165\u547d\u4ee4\uff0c\u6216\u70b9\u51fb\u201c\u8bfb\u526a\u8d34\u677f\u201d\u3002'
+        return
+    }
+
+    if ($script:TaihPanelProcess -and -not $script:TaihPanelProcess.HasExited) {
+        $StatusLabel.Text = L '\u5df2\u6709\u8bf7\u6c42\u5728\u6267\u884c'
         return
     }
 
@@ -142,34 +177,117 @@ function Invoke-TerminalAiPanelRequest {
     $OutputBox.Text = (L '\u6b63\u5728\u751f\u6210\uff0c\u8bf7\u7a0d\u5019...') + "`r`n`r`n" + $text
     $ProgressBar.Visible = $true
     $ProgressBar.MarqueeAnimationSpeed = 30
-    [System.Windows.Forms.Application]::DoEvents()
+    if ($RunButton) { $RunButton.Enabled = $false; $RunButton.Text = L '\u8fd0\u884c\u4e2d' }
+    if ($ClipButton) { $ClipButton.Enabled = $false }
 
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        if ($mode -eq "complete") {
-            $result = Invoke-TerminalAiJson -Mode complete -Text $text
-            if ($result.completion) {
-                $OutputBox.Text = "$($result.completion)`r`n`r`n$($result.summary)"
-            } else {
-                $OutputBox.Text = L '\u6ca1\u6709\u53ef\u76f4\u63a5\u63d2\u5165\u7684\u8865\u5168\u5efa\u8bae\u3002'
-            }
-        } else {
-            $resultText = Invoke-TerminalAiText -Mode $mode -Text $text -Stream -NoCache
-            $OutputBox.Text = $resultText
+        $args = @($mode)
+        if ($mode -ne "complete") { $args += @("--stream", "--no-cache") }
+        $args += @("--", $text)
+
+        $env:TAIH_SHELL = "PowerShell $($PSVersionTable.PSVersion)"
+        $stdoutFile = [System.IO.Path]::GetTempFileName()
+        $stderrFile = [System.IO.Path]::GetTempFileName()
+        $allArgs = @($script:TaihCli) + $args
+        $argumentLine = ($allArgs | ForEach-Object { Q $_ }) -join " "
+        $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
+
+        $finishTimer = New-Object System.Windows.Forms.Timer
+        $script:TaihPanelTimer = $finishTimer
+        $script:TaihPanelState = [pscustomobject]@{
+            Process = $process
+            StdoutFile = $stdoutFile
+            StderrFile = $stderrFile
+            LastLength = 0
+            Stopwatch = $timer
+            Mode = $mode
+            Text = $text
+            OutputBox = $OutputBox
+            StatusLabel = $StatusLabel
+            ProgressBar = $ProgressBar
+            HistoryBox = $HistoryBox
+            RunButton = $RunButton
+            ClipButton = $ClipButton
         }
-        $timer.Stop()
-        $StatusLabel.Text = (L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + [Math]::Round($timer.Elapsed.TotalSeconds, 1) + (L ' \u79d2')
-        Add-TerminalAiHistory -Mode $mode -Text $text -Output $OutputBox.Text
-        $HistoryBox.Items.Clear()
-        foreach ($h in $script:TaihHistoryItems) { [void]$HistoryBox.Items.Add($h.Preview) }
+        $finishTimer.Interval = 250
+        $finishTimer.Add_Tick({
+            try {
+                $state = $script:TaihPanelState
+                if ($null -eq $state) { return }
+                $currentText = ""
+                try {
+                    if (Test-Path -LiteralPath $state.StdoutFile) {
+                        $currentText = [System.IO.File]::ReadAllText($state.StdoutFile, [System.Text.Encoding]::UTF8)
+                    }
+                } catch {
+                    $currentText = ""
+                }
+                if ($currentText.Length -gt $state.LastLength) {
+                    $chunk = $currentText.Substring($state.LastLength)
+                    $state.LastLength = $currentText.Length
+                    Add-TerminalAiOutputText -OutputBox $state.OutputBox -Text $chunk
+                }
+
+                if (-not $state.Process.HasExited) { return }
+
+                $script:TaihPanelTimer.Stop()
+                $script:TaihPanelTimer.Dispose()
+                $state.Stopwatch.Stop()
+                $state.ProgressBar.MarqueeAnimationSpeed = 0
+                $state.ProgressBar.Visible = $false
+                if ($state.RunButton) { $state.RunButton.Enabled = $true; $state.RunButton.Text = L '\u6267\u884c' }
+                if ($state.ClipButton) { $state.ClipButton.Enabled = $true }
+
+                $finalText = ""
+                $errorText = ""
+                try { if (Test-Path -LiteralPath $state.StdoutFile) { $finalText = [System.IO.File]::ReadAllText($state.StdoutFile, [System.Text.Encoding]::UTF8) } } catch {}
+                try { if (Test-Path -LiteralPath $state.StderrFile) { $errorText = [System.IO.File]::ReadAllText($state.StderrFile, [System.Text.Encoding]::UTF8) } } catch {}
+
+                if (-not $errorText.Trim() -and $finalText.Trim()) {
+                    if ($state.OutputBox.Text -ne $finalText) { $state.OutputBox.Text = $finalText }
+                    $state.StatusLabel.Text = (L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + [Math]::Round($state.Stopwatch.Elapsed.TotalSeconds, 1) + (L ' \u79d2')
+                    Add-TerminalAiHistory -Mode $state.Mode -Text $state.Text -Output $finalText
+                    $state.HistoryBox.Items.Clear()
+                    foreach ($h in $script:TaihHistoryItems) { [void]$state.HistoryBox.Items.Add($h.Preview) }
+                } else {
+                    $message = ($errorText + $finalText).Trim()
+                    if (-not $message) { $message = "node did not return output" }
+                    $state.StatusLabel.Text = L '\u8bf7\u6c42\u5931\u8d25'
+                    $state.OutputBox.Text = (L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $message
+                }
+
+                if ($script:TaihPanelProcess -eq $state.Process) { $script:TaihPanelProcess = $null }
+                $script:TaihPanelTimer = $null
+                $script:TaihPanelState = $null
+                Remove-Item -LiteralPath $state.StdoutFile, $state.StderrFile -Force -ErrorAction SilentlyContinue
+                $state.Process.Dispose()
+            } catch {
+                $state = $script:TaihPanelState
+                if ($script:TaihPanelTimer) { $script:TaihPanelTimer.Stop(); $script:TaihPanelTimer.Dispose() }
+                if ($state) {
+                    $state.StatusLabel.Text = L '\u8bf7\u6c42\u5931\u8d25'
+                    $state.OutputBox.Text = (L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $_.Exception.Message
+                    if ($script:TaihPanelProcess -eq $state.Process) { $script:TaihPanelProcess = $null }
+                    Remove-Item -LiteralPath $state.StdoutFile, $state.StderrFile -Force -ErrorAction SilentlyContinue
+                    try { $state.Process.Dispose() } catch {}
+                }
+                $script:TaihPanelTimer = $null
+                $script:TaihPanelState = $null
+            }
+        })
+
+        $script:TaihPanelProcess = $process
+        $OutputBox.Clear()
+        $finishTimer.Start()
     } catch {
         $timer.Stop()
         $StatusLabel.Text = L '\u8bf7\u6c42\u5931\u8d25'
         $OutputBox.Text = (L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $_.Exception.Message
-    } finally {
         $ProgressBar.MarqueeAnimationSpeed = 0
         $ProgressBar.Visible = $false
-        $OutputBox.Focus()
+        if ($RunButton) { $RunButton.Enabled = $true; $RunButton.Text = L '\u6267\u884c' }
+        if ($ClipButton) { $ClipButton.Enabled = $true }
     }
 }
 
@@ -196,6 +314,21 @@ function Show-TerminalAiPanel {
     $form.KeyPreview = $true
     $form.Add_KeyDown({
         if ($_.KeyCode -eq "Escape") { $form.Close() }
+    })
+    $form.Add_FormClosing({
+        if ($script:TaihPanelTimer) {
+            try { $script:TaihPanelTimer.Stop(); $script:TaihPanelTimer.Dispose() } catch {}
+            $script:TaihPanelTimer = $null
+        }
+        if ($script:TaihPanelProcess -and -not $script:TaihPanelProcess.HasExited) {
+            try { $script:TaihPanelProcess.Kill() } catch {}
+            try { $script:TaihPanelProcess.Dispose() } catch {}
+            $script:TaihPanelProcess = $null
+        }
+        if ($script:TaihPanelState) {
+            Remove-Item -LiteralPath $script:TaihPanelState.StdoutFile, $script:TaihPanelState.StderrFile -Force -ErrorAction SilentlyContinue
+            $script:TaihPanelState = $null
+        }
     })
 
     $root = New-Object System.Windows.Forms.TableLayoutPanel
@@ -357,8 +490,8 @@ function Show-TerminalAiPanel {
     [void]$root.Controls.Add($buttons, 0, 3)
     [void]$form.Controls.Add($root)
 
-    $run.Add_Click({ Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
-    $commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history } })
+    $run.Add_Click({ Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history -RunButton $run -ClipButton $clip })
+    $commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history -RunButton $run -ClipButton $clip } })
     $clip.Add_Click({
         $clipText = Get-Clipboard -Raw
         if (-not $clipText -or -not $clipText.Trim()) {
@@ -367,7 +500,7 @@ function Show-TerminalAiPanel {
             return
         }
         $commandBox.Text = $clipText
-        Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history
+        Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $commandBox -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history -RunButton $run -ClipButton $clip
     })
     $close.Add_Click({ $form.Close() })
     $copy.Add_Click({ Set-Clipboard -Value $output.Text; $status.Text = L '\u5df2\u590d\u5236' })
