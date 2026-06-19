@@ -1,15 +1,17 @@
 $script:TaihRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
 $script:TaihCli = Join-Path $script:TaihRoot "bin\taih.js"
-$script:TaihPanel = $null
-$script:TaihOutput = $null
-$script:TaihInput = $null
-$script:TaihHistory = $null
-$script:TaihStatus = $null
-$script:TaihProgress = $null
-$script:TaihMode = $null
 $script:TaihHistoryItems = New-Object System.Collections.ArrayList
 
-function ConvertTo-TerminalAiProcessArgument {
+function L {
+    param([string]$Text)
+    $evaluator = {
+        param($Match)
+        [string][char]([Convert]::ToInt32($Match.Groups[1].Value, 16))
+    }
+    return [regex]::Replace($Text, '\\u([0-9a-fA-F]{4})', [System.Text.RegularExpressions.MatchEvaluator]$evaluator)
+}
+
+function Q {
     param([AllowNull()][string]$Value)
     if ($null -eq $Value) { return '""' }
     if ($Value -notmatch '[\s"]') { return $Value }
@@ -28,7 +30,7 @@ function Invoke-TerminalAiNode {
     $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
     $psi.CreateNoWindow = $true
     $allArgs = @($script:TaihCli) + $Arguments
-    $psi.Arguments = ($allArgs | ForEach-Object { ConvertTo-TerminalAiProcessArgument $_ }) -join " "
+    $psi.Arguments = ($allArgs | ForEach-Object { Q $_ }) -join " "
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $psi
@@ -42,6 +44,7 @@ function Invoke-TerminalAiNode {
         if (-not $message) { $message = "node exited with code $($process.ExitCode)" }
         throw $message
     }
+
     return $stdout
 }
 
@@ -59,14 +62,14 @@ function Get-TerminalAiContext {
     }
 
     if ($selectionLength -gt 0) {
-        return [pscustomobject]@{ Text = $buffer.Substring($selectionStart, $selectionLength); Source = "selection" }
+        return $buffer.Substring($selectionStart, $selectionLength)
     }
 
     $beforeCursor = if ($cursor -gt 0) { $buffer.Substring(0, $cursor) } else { "" }
     $lineBreak = $beforeCursor.LastIndexOf("`n")
     $currentLine = if ($lineBreak -ge 0) { $beforeCursor.Substring($lineBreak + 1) } else { $beforeCursor }
     if (-not $currentLine.Trim()) { $currentLine = $buffer }
-    return [pscustomobject]@{ Text = $currentLine; Source = "current-command" }
+    return $currentLine
 }
 
 function Invoke-TerminalAiJson {
@@ -85,141 +88,93 @@ function Invoke-TerminalAiText {
         [ValidateSet("explain", "complete", "fix")]
         [string]$Mode,
         [string]$Text,
+        [switch]$Stream,
         [switch]$NoCache
     )
     $env:TAIH_SHELL = "PowerShell $($PSVersionTable.PSVersion)"
     $args = @($Mode)
+    if ($Stream) { $args += "--stream" }
     if ($NoCache) { $args += "--no-cache" }
     $args += @("--", $Text)
     return (Invoke-TerminalAiNode -Arguments $args)
-}
-
-function Invoke-TerminalAiStreamToPanel {
-    param(
-        [ValidateSet("explain", "fix")]
-        [string]$Mode,
-        [string]$Text
-    )
-
-    $env:TAIH_SHELL = "PowerShell $($PSVersionTable.PSVersion)"
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = "node"
-    $psi.UseShellExecute = $false
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError = $true
-    $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
-    $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
-    $psi.CreateNoWindow = $true
-    $args = @($script:TaihCli, $Mode, "--stream", "--no-cache", "--", $Text)
-    $psi.Arguments = ($args | ForEach-Object { ConvertTo-TerminalAiProcessArgument $_ }) -join " "
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $psi
-    $process.EnableRaisingEvents = $true
-    [void]$process.Start()
-    $buffer = New-Object System.Text.StringBuilder
-    $errorBuffer = New-Object System.Text.StringBuilder
-
-    $outHandler = [System.Diagnostics.DataReceivedEventHandler]{
-        param($sender, $eventArgs)
-        if ($null -ne $eventArgs.Data) {
-            [void]$buffer.AppendLine($eventArgs.Data)
-        }
-    }
-    $errHandler = [System.Diagnostics.DataReceivedEventHandler]{
-        param($sender, $eventArgs)
-        if ($null -ne $eventArgs.Data) {
-            [void]$errorBuffer.AppendLine($eventArgs.Data)
-        }
-    }
-    $process.add_OutputDataReceived($outHandler)
-    $process.add_ErrorDataReceived($errHandler)
-    $process.BeginOutputReadLine()
-    $process.BeginErrorReadLine()
-
-    $lastLength = -1
-    while (-not $process.HasExited) {
-        $current = $buffer.ToString()
-        if ($current.Length -ne $lastLength) {
-            $lastLength = $current.Length
-            $script:TaihOutput.Text = $current
-            $script:TaihOutput.SelectionStart = $script:TaihOutput.TextLength
-            $script:TaihOutput.ScrollToCaret()
-        }
-        Start-Sleep -Milliseconds 80
-        [System.Windows.Forms.Application]::DoEvents()
-    }
-
-    $process.WaitForExit()
-
-    if ($process.ExitCode -ne 0) {
-        $err = $errorBuffer.ToString()
-        if ($err) { throw $err }
-        throw "stream process exited with code $($process.ExitCode)"
-    }
-
-    $final = $buffer.ToString()
-    $script:TaihOutput.Text = $final
-    return $final
-}
-
-function Add-TerminalAiNativeMethods {
-    if ("TerminalAi.Native" -as [type]) { return }
-    Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-namespace TerminalAi {
-  public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
-  public static class Native {
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
-  }
-}
-"@
-}
-
-function Move-TerminalAiPanelNearTerminal {
-    if (-not $script:TaihPanel) { return }
-    Add-TerminalAiNativeMethods
-    $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-    $width = [Math]::Min(620, [Math]::Max(520, [int]($screen.Width * 0.34)))
-    $height = [Math]::Min(820, [Math]::Max(560, [int]($screen.Height * 0.82)))
-    $x = $screen.Right - $width - 12
-    $y = $screen.Top + 24
-
-    try {
-        $rect = New-Object TerminalAi.RECT
-        $hwnd = [TerminalAi.Native]::GetForegroundWindow()
-        if ([TerminalAi.Native]::GetWindowRect($hwnd, [ref]$rect)) {
-            if (($rect.Right + $width + 12) -lt $screen.Right) {
-                $x = $rect.Right + 10
-                $y = [Math]::Max($screen.Top + 12, $rect.Top)
-                $height = [Math]::Min($height, [Math]::Max(480, $rect.Bottom - $rect.Top))
-            }
-        }
-    } catch {
-        # Keep default right-side placement.
-    }
-
-    $script:TaihPanel.Size = New-Object System.Drawing.Size($width, $height)
-    $script:TaihPanel.Location = New-Object System.Drawing.Point($x, $y)
 }
 
 function Add-TerminalAiHistory {
     param([string]$Mode, [string]$Text, [string]$Output)
     $preview = ($Text -replace '\s+', ' ').Trim()
     if ($preview.Length -gt 80) { $preview = $preview.Substring(0, 80) + "..." }
-    $item = [pscustomobject]@{ Mode = $Mode; Text = $Text; Output = $Output; Preview = "[$Mode] $preview"; At = Get-Date }
+    $item = [pscustomobject]@{
+        Mode = $Mode
+        Text = $Text
+        Output = $Output
+        Preview = "[$Mode] $preview"
+        At = Get-Date
+    }
     [void]$script:TaihHistoryItems.Insert(0, $item)
-    while ($script:TaihHistoryItems.Count -gt 50) { $script:TaihHistoryItems.RemoveAt($script:TaihHistoryItems.Count - 1) }
-    if ($script:TaihHistory) {
-        $script:TaihHistory.Items.Clear()
-        foreach ($h in $script:TaihHistoryItems) { [void]$script:TaihHistory.Items.Add($h.Preview) }
+    while ($script:TaihHistoryItems.Count -gt 50) {
+        $script:TaihHistoryItems.RemoveAt($script:TaihHistoryItems.Count - 1)
     }
 }
 
-function Initialize-TerminalAiPanel {
-    if ($script:TaihPanel -and -not $script:TaihPanel.IsDisposed) { return }
+function Move-TerminalAiFormRight {
+    param($Form)
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $width = [Math]::Min(680, [Math]::Max(560, [int]($screen.Width * 0.36)))
+    $height = [Math]::Min(840, [Math]::Max(560, [int]($screen.Height * 0.84)))
+    $x = $screen.Right - $width - 12
+    $y = $screen.Top + 24
+    $Form.Size = New-Object System.Drawing.Size($width, $height)
+    $Form.Location = New-Object System.Drawing.Point($x, $y)
+}
+
+function Invoke-TerminalAiPanelRequest {
+    param($ModeBox, $InputBox, $OutputBox, $StatusLabel, $ProgressBar, $HistoryBox)
+
+    $mode = [string]$ModeBox.SelectedItem
+    if (-not $mode) { $mode = "explain" }
+    $text = $InputBox.Text
+    if (-not $text.Trim()) {
+        $StatusLabel.Text = L '\u8f93\u5165\u4e3a\u7a7a'
+        return
+    }
+
+    $StatusLabel.Text = L '\u6b63\u5728\u8bf7\u6c42 AI...'
+    $OutputBox.Text = (L '\u6b63\u5728\u751f\u6210\uff0c\u8bf7\u7a0d\u5019...') + "`r`n`r`n" + $text
+    $ProgressBar.Visible = $true
+    $ProgressBar.MarqueeAnimationSpeed = 30
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        if ($mode -eq "complete") {
+            $result = Invoke-TerminalAiJson -Mode complete -Text $text
+            if ($result.completion) {
+                $OutputBox.Text = "$($result.completion)`r`n`r`n$($result.summary)"
+            } else {
+                $OutputBox.Text = L '\u6ca1\u6709\u53ef\u76f4\u63a5\u63d2\u5165\u7684\u8865\u5168\u5efa\u8bae\u3002'
+            }
+        } else {
+            $resultText = Invoke-TerminalAiText -Mode $mode -Text $text -Stream -NoCache
+            $OutputBox.Text = $resultText
+        }
+        $timer.Stop()
+        $StatusLabel.Text = (L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + [Math]::Round($timer.Elapsed.TotalSeconds, 1) + (L ' \u79d2')
+        Add-TerminalAiHistory -Mode $mode -Text $text -Output $OutputBox.Text
+        $HistoryBox.Items.Clear()
+        foreach ($h in $script:TaihHistoryItems) { [void]$HistoryBox.Items.Add($h.Preview) }
+    } catch {
+        $timer.Stop()
+        $StatusLabel.Text = L '\u8bf7\u6c42\u5931\u8d25'
+        $OutputBox.Text = (L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $_.Exception.Message
+    } finally {
+        $ProgressBar.MarqueeAnimationSpeed = 0
+        $ProgressBar.Visible = $false
+        $OutputBox.Focus()
+    }
+}
+
+function Show-TerminalAiPanel {
+    param([string]$InitialText = "")
 
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
@@ -233,23 +188,14 @@ function Initialize-TerminalAiPanel {
     $accent = [System.Drawing.Color]::FromArgb(47, 129, 247)
 
     $form = New-Object System.Windows.Forms.Form
-    $form.Text = "terminal-ai-helper"
+    $form.Text = L '\u7ec8\u7aef AI \u52a9\u624b'
     $form.StartPosition = "Manual"
-    $form.Size = New-Object System.Drawing.Size(600, 760)
-    $form.MinimumSize = New-Object System.Drawing.Size(520, 460)
-    $form.TopMost = $false
+    $form.MinimumSize = New-Object System.Drawing.Size(560, 480)
     $form.BackColor = $bg
     $form.ForeColor = $fg
     $form.KeyPreview = $true
     $form.Add_KeyDown({
-        if ($_.KeyCode -eq "Escape") { $script:TaihPanel.Hide() }
-        if ($_.Control -and $_.KeyCode -eq "L") { $script:TaihOutput.Clear() }
-    })
-    $form.Add_FormClosing({
-        if ($_.CloseReason -eq [System.Windows.Forms.CloseReason]::UserClosing) {
-            $_.Cancel = $true
-            $script:TaihPanel.Hide()
-        }
+        if ($_.KeyCode -eq "Escape") { $form.Close() }
     })
 
     $root = New-Object System.Windows.Forms.TableLayoutPanel
@@ -257,37 +203,36 @@ function Initialize-TerminalAiPanel {
     $root.ColumnCount = 1
     $root.RowCount = 4
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 76)))
-    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 74)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 76)))
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
-    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 56)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 58)))
 
     $header = New-Object System.Windows.Forms.Panel
     $header.Dock = "Fill"
     $header.BackColor = $panelBg
 
     $title = New-Object System.Windows.Forms.Label
-    $title.Text = "terminal-ai-helper"
-    $title.AutoSize = $false
+    $title.Text = L '\u7ec8\u7aef AI \u52a9\u624b'
     $title.Dock = "Top"
     $title.Height = 34
     $title.Padding = New-Object System.Windows.Forms.Padding(16, 10, 16, 0)
-    $title.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Bold)
+    $title.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 12, [System.Drawing.FontStyle]::Bold)
     $title.ForeColor = $fg
 
     $hint = New-Object System.Windows.Forms.Label
-    $hint.Text = "Docked side panel. Scroll, select, copy. Esc hides."
-    $hint.AutoSize = $false
+    $hint.Text = L '\u53ef\u6eda\u52a8\u3001\u53ef\u9009\u62e9\u3001\u53ef\u590d\u5236\u3002Esc \u6216\u53f3\u4e0a\u89d2 X \u5173\u95ed\u7a97\u53e3\u3002'
     $hint.Dock = "Fill"
     $hint.Padding = New-Object System.Windows.Forms.Padding(16, 0, 16, 0)
-    $hint.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $hint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
     $hint.ForeColor = $muted
 
     $progress = New-Object System.Windows.Forms.ProgressBar
     $progress.Dock = "Bottom"
     $progress.Height = 4
     $progress.Style = "Marquee"
-    $progress.MarqueeAnimationSpeed = 0
     $progress.Visible = $false
+    $progress.MarqueeAnimationSpeed = 0
+
     [void]$header.Controls.Add($hint)
     [void]$header.Controls.Add($title)
     [void]$header.Controls.Add($progress)
@@ -298,10 +243,10 @@ function Initialize-TerminalAiPanel {
     $inputPanel.ColumnCount = 4
     $inputPanel.RowCount = 1
     $inputPanel.Padding = New-Object System.Windows.Forms.Padding(10, 10, 10, 8)
-    [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 96)))
+    [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 94)))
     [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
     [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 92)))
-    [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 92)))
+    [void]$inputPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 104)))
 
     $mode = New-Object System.Windows.Forms.ComboBox
     $mode.DropDownStyle = "DropDownList"
@@ -317,16 +262,17 @@ function Initialize-TerminalAiPanel {
     $input.BackColor = $surface2
     $input.ForeColor = $fg
     $input.BorderStyle = "FixedSingle"
+    $input.Text = $InitialText
 
     $run = New-Object System.Windows.Forms.Button
-    $run.Text = "Run"
+    $run.Text = L '\u6267\u884c'
     $run.Dock = "Fill"
     $run.BackColor = $accent
     $run.ForeColor = [System.Drawing.Color]::White
     $run.FlatStyle = "Flat"
 
     $clip = New-Object System.Windows.Forms.Button
-    $clip.Text = "Clip"
+    $clip.Text = L '\u8bfb\u526a\u8d34\u677f'
     $clip.Dock = "Fill"
     $clip.BackColor = [System.Drawing.Color]::FromArgb(35, 42, 52)
     $clip.ForeColor = $fg
@@ -340,15 +286,15 @@ function Initialize-TerminalAiPanel {
     $split = New-Object System.Windows.Forms.SplitContainer
     $split.Dock = "Fill"
     $split.Orientation = "Vertical"
-    $split.SplitterDistance = 170
+    $split.SplitterDistance = 180
     $split.BackColor = $bg
 
     $history = New-Object System.Windows.Forms.ListBox
     $history.Dock = "Fill"
     $history.BackColor = $surface
     $history.ForeColor = $muted
-    $history.BorderStyle = "None"
-    $history.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $history.BorderStyle = "FixedSingle"
+    $history.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
 
     $output = New-Object System.Windows.Forms.RichTextBox
     $output.Multiline = $true
@@ -356,13 +302,16 @@ function Initialize-TerminalAiPanel {
     $output.ScrollBars = "Both"
     $output.WordWrap = $true
     $output.Dock = "Fill"
-    $output.BorderStyle = "None"
+    $output.BorderStyle = "FixedSingle"
     $output.BackColor = $surface
     $output.ForeColor = $fg
     $output.SelectionBackColor = $accent
     $output.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 10.5)
     $output.ShortcutsEnabled = $true
     $output.DetectUrls = $true
+    $output.HideSelection = $false
+
+    foreach ($h in $script:TaihHistoryItems) { [void]$history.Items.Add($h.Preview) }
 
     [void]$split.Panel1.Controls.Add($history)
     [void]$split.Panel2.Controls.Add($output)
@@ -373,10 +322,10 @@ function Initialize-TerminalAiPanel {
     $buttons.Padding = New-Object System.Windows.Forms.Padding(10)
     $buttons.BackColor = $panelBg
 
-    function New-TaihButton([string]$Text) {
+    function New-PanelButton([string]$Text) {
         $b = New-Object System.Windows.Forms.Button
         $b.Text = $Text
-        $b.Width = 86
+        $b.Width = 88
         $b.Height = 30
         $b.FlatStyle = "Flat"
         $b.BackColor = [System.Drawing.Color]::FromArgb(35, 42, 52)
@@ -384,22 +333,22 @@ function Initialize-TerminalAiPanel {
         return $b
     }
 
-    $hide = New-TaihButton "Hide"
-    $copy = New-TaihButton "Copy"
-    $clear = New-TaihButton "Clear"
-    $cache = New-TaihButton "Cache-"
-    $settings = New-TaihButton "Help"
+    $close = New-PanelButton (L '\u5173\u95ed')
+    $copy = New-PanelButton (L '\u590d\u5236')
+    $clear = New-PanelButton (L '\u6e05\u7a7a')
+    $cache = New-PanelButton (L '\u6e05\u7f13\u5b58')
+    $help = New-PanelButton (L '\u5e2e\u52a9')
     $status = New-Object System.Windows.Forms.Label
-    $status.Text = "Ready"
+    $status.Text = L '\u5c31\u7eea'
     $status.AutoSize = $true
     $status.Padding = New-Object System.Windows.Forms.Padding(0, 7, 14, 0)
     $status.ForeColor = $muted
 
-    [void]$buttons.Controls.Add($hide)
+    [void]$buttons.Controls.Add($close)
     [void]$buttons.Controls.Add($copy)
     [void]$buttons.Controls.Add($clear)
     [void]$buttons.Controls.Add($cache)
-    [void]$buttons.Controls.Add($settings)
+    [void]$buttons.Controls.Add($help)
     [void]$buttons.Controls.Add($status)
 
     [void]$root.Controls.Add($header, 0, 0)
@@ -408,85 +357,42 @@ function Initialize-TerminalAiPanel {
     [void]$root.Controls.Add($buttons, 0, 3)
     [void]$form.Controls.Add($root)
 
-    $script:TaihPanel = $form
-    $script:TaihOutput = $output
-    $script:TaihInput = $input
-    $script:TaihHistory = $history
-    $script:TaihStatus = $status
-    $script:TaihProgress = $progress
-    $script:TaihMode = $mode
-
-    $run.Add_Click({ Invoke-TerminalAiPanelRun })
-    $input.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRun } })
-    $clip.Add_Click({ $script:TaihInput.Text = Get-Clipboard -Raw; Invoke-TerminalAiPanelRun })
-    $hide.Add_Click({ $script:TaihPanel.Hide() })
-    $copy.Add_Click({ Set-Clipboard -Value $script:TaihOutput.Text; $script:TaihStatus.Text = "Copied" })
-    $clear.Add_Click({ $script:TaihOutput.Clear(); $script:TaihStatus.Text = "Cleared" })
+    $run.Add_Click({ Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
+    $input.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history } })
+    $clip.Add_Click({ $input.Text = Get-Clipboard -Raw; Invoke-TerminalAiPanelRequest -ModeBox $mode -InputBox $input -OutputBox $output -StatusLabel $status -ProgressBar $progress -HistoryBox $history })
+    $close.Add_Click({ $form.Close() })
+    $copy.Add_Click({ Set-Clipboard -Value $output.Text; $status.Text = L '\u5df2\u590d\u5236' })
+    $clear.Add_Click({ $output.Clear(); $status.Text = L '\u5df2\u6e05\u7a7a' })
     $cache.Add_Click({
-        try { Invoke-TerminalAiNode -Arguments @("cache", "clear") | Out-Null; $script:TaihStatus.Text = "Cache cleared" }
-        catch { $script:TaihStatus.Text = "Cache clear failed" }
+        try { Invoke-TerminalAiNode -Arguments @("cache", "clear") | Out-Null; $status.Text = L '\u7f13\u5b58\u5df2\u6e05\u7406' }
+        catch { $status.Text = L '\u7f13\u5b58\u6e05\u7406\u5931\u8d25' }
     })
-    $settings.Add_Click({
-        $script:TaihOutput.Text = @"
-terminal-ai-helper quick help
+    $help.Add_Click({
+        $output.Text = (L '\u7ec8\u7aef AI \u52a9\u624b\u5feb\u901f\u8bf4\u660e') + @"
 
-Alt+/        print help in terminal
-Alt+Shift+/  open or update this side panel
-Ctrl+Space   insert completion
-Alt+Shift+C  copy completion
-Alt+Shift+F  diagnose command
+Alt+/        $(L '\u5728\u7ec8\u7aef\u91cc\u76f4\u63a5\u89e3\u91ca\u5f53\u524d\u547d\u4ee4')
+Alt+?        $(L '\u6253\u5f00\u7ba1\u7406\u9762\u677f')
+Ctrl+Space   $(L '\u8865\u5168\u5f53\u524d\u547d\u4ee4\u5e76\u63d2\u5165')
+Alt+Shift+F  $(L '\u8bca\u65ad\u5f53\u524d\u547d\u4ee4')
 
 SSH:
-1. Local: node bin/taih.js serve --port 17888
-2. SSH:   ssh -R 17888:127.0.0.1:17888 <user>@<host>
-3. Remote: source /path/to/terminal-ai-helper/remote/taih-bash.sh
+1. node bin/taih.js serve --port 17888
+2. ssh -R 17888:127.0.0.1:17888 <user>@<host>
+3. source /path/to/terminal-ai-helper/remote/taih-bash.sh
 "@
     })
     $history.Add_SelectedIndexChanged({
-        $idx = $script:TaihHistory.SelectedIndex
+        $idx = $history.SelectedIndex
         if ($idx -ge 0 -and $idx -lt $script:TaihHistoryItems.Count) {
             $item = $script:TaihHistoryItems[$idx]
-            $script:TaihInput.Text = $item.Text
-            $script:TaihOutput.Text = $item.Output
-            $script:TaihStatus.Text = "History: $($item.Mode)"
+            $input.Text = $item.Text
+            $output.Text = $item.Output
+            $status.Text = (L '\u5386\u53f2\uff1a') + $item.Mode
         }
     })
 
-    Move-TerminalAiPanelNearTerminal
-}
-
-function Update-TerminalAiPanel {
-    param(
-        [string]$Title = "terminal-ai-helper",
-        [string]$Text,
-        [string]$Status = "Ready",
-        [string]$InputText = "",
-        [string]$Mode = "explain",
-        [switch]$Busy,
-        [switch]$Activate
-    )
-    Initialize-TerminalAiPanel
-    $script:TaihPanel.Text = $Title
-    if ($InputText) { $script:TaihInput.Text = $InputText }
-    if ($Mode -and $script:TaihMode.Items.Contains($Mode)) { $script:TaihMode.SelectedItem = $Mode }
-    $script:TaihOutput.Text = $Text
-    $script:TaihOutput.SelectionStart = 0
-    $script:TaihOutput.ScrollToCaret()
-    $script:TaihStatus.Text = $Status
-    $script:TaihProgress.Visible = [bool]$Busy
-    $script:TaihProgress.MarqueeAnimationSpeed = if ($Busy) { 30 } else { 0 }
-    if (-not $script:TaihPanel.Visible) { $script:TaihPanel.Show() }
-    if ($Activate) { [void]$script:TaihPanel.Activate(); $script:TaihOutput.Focus() }
-    [System.Windows.Forms.Application]::DoEvents()
-}
-
-function Invoke-TerminalAiPanelRun {
-    Initialize-TerminalAiPanel
-    $mode = [string]$script:TaihMode.SelectedItem
-    if (-not $mode) { $mode = "explain" }
-    $text = $script:TaihInput.Text
-    if (-not $text.Trim()) { $script:TaihStatus.Text = "Empty input"; return }
-    Invoke-TerminalAiHelper -Mode $mode -Text $text -Window
+    Move-TerminalAiFormRight -Form $form
+    [void]$form.ShowDialog()
 }
 
 function Invoke-TerminalAiHelper {
@@ -495,94 +401,65 @@ function Invoke-TerminalAiHelper {
         [string]$Mode = "explain",
         [string]$Text,
         [switch]$Window,
-        [switch]$Copy,
-        [switch]$NoCache
+        [switch]$Copy
     )
-    if (-not $Text) { $Text = (Get-TerminalAiContext).Text }
-    if (-not $Text.Trim()) { Write-Host "`nCurrent command is empty." -ForegroundColor Yellow; return }
+    if (-not $Text) { $Text = Get-TerminalAiContext }
+    if (-not $Text.Trim()) { Write-Host (L '\u5f53\u524d\u547d\u4ee4\u4e3a\u7a7a\u3002') -ForegroundColor Yellow; return }
 
-    $preview = if ($Text.Length -gt 600) { $Text.Substring(0, 600) + "..." } else { $Text }
-    $timer = [System.Diagnostics.Stopwatch]::StartNew()
     if ($Window) {
-        Update-TerminalAiPanel -Title "terminal-ai-helper: $Mode" -Text "Working...`r`n`r`n$preview" -Status "Calling API..." -InputText $Text -Mode $Mode -Busy -Activate
-    } else {
-        Write-Host ""; Write-Host "AI is working... ($Mode)" -ForegroundColor DarkGray
-    }
-
-    try {
-        if ($Window -and ($Mode -eq "explain" -or $Mode -eq "fix")) {
-            $result = Invoke-TerminalAiStreamToPanel -Mode $Mode -Text $Text
-        } else {
-            $result = Invoke-TerminalAiText -Mode $Mode -Text $Text -NoCache:$NoCache
-        }
-    }
-    catch {
-        $timer.Stop()
-        $msg = "Request failed after $([math]::Round($timer.Elapsed.TotalSeconds, 1))s.`r`n`r`n$($_.Exception.Message)"
-        if ($Window) { Update-TerminalAiPanel -Title "terminal-ai-helper: $Mode failed" -Text $msg -Status "Failed" -InputText $Text -Mode $Mode -Activate }
-        else { Write-Host "AI request failed: $($_.Exception.Message)" -ForegroundColor Red }
+        Show-TerminalAiPanel -InitialText $Text
         return
     }
 
-    $timer.Stop()
-    if ($Copy) { Set-Clipboard -Value $result; Write-Host "AI result copied to clipboard." -ForegroundColor Green }
-    Add-TerminalAiHistory -Mode $Mode -Text $Text -Output $result
-    if ($Window) {
-        Update-TerminalAiPanel -Title "terminal-ai-helper: $Mode" -Text $result -Status "Done in $([math]::Round($timer.Elapsed.TotalSeconds, 1))s" -InputText $Text -Mode $Mode -Activate
-    } else {
+    Write-Host ""
+    Write-Host (L 'AI \u6b63\u5728\u5de5\u4f5c...') -ForegroundColor DarkGray
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    try {
+        $result = Invoke-TerminalAiText -Mode $Mode -Text $Text
+        $timer.Stop()
+        if ($Copy) { Set-Clipboard -Value $result }
         Write-Host $result -ForegroundColor Cyan
-        Write-Host "Done in $([math]::Round($timer.Elapsed.TotalSeconds, 1))s" -ForegroundColor DarkGray
+        Write-Host ((L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + [Math]::Round($timer.Elapsed.TotalSeconds, 1) + (L ' \u79d2')) -ForegroundColor DarkGray
+    } catch {
+        Write-Host ((L '\u8bf7\u6c42\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
     }
 }
 
-function Show-TerminalAiUsage { Invoke-TerminalAiHelper -Mode explain -Text (Get-TerminalAiContext).Text; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
-function Show-TerminalAiUsageWindow {
-    $text = (Get-TerminalAiContext).Text
-    if ($text.Trim()) {
-        Invoke-TerminalAiHelper -Mode explain -Text $text -Window
-    } else {
-        Show-TerminalAiPanel
-    }
-    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
-}
-function Show-TerminalAiFixWindow { Invoke-TerminalAiHelper -Mode fix -Text (Get-TerminalAiContext).Text -Window; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
-function Show-TerminalAiPanel { Initialize-TerminalAiPanel; Move-TerminalAiPanelNearTerminal; if (-not $script:TaihPanel.Visible) { $script:TaihPanel.Show() }; [void]$script:TaihPanel.Activate() }
-
+function Show-TerminalAiUsage { Invoke-TerminalAiHelper -Mode explain -Text (Get-TerminalAiContext); [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
+function Show-TerminalAiUsageWindow { Show-TerminalAiPanel -InitialText (Get-TerminalAiContext); [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
+function Show-TerminalAiFixWindow { $text = Get-TerminalAiContext; Show-TerminalAiPanel -InitialText $text; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
 function Complete-TerminalAiCommand {
-    $ctx = Get-TerminalAiContext
-    if (-not $ctx.Text.Trim()) { return }
-    Write-Host ""; Write-Host "AI completion is working..." -ForegroundColor DarkGray
+    $text = Get-TerminalAiContext
+    if (-not $text.Trim()) { return }
+    Write-Host ""
+    Write-Host (L 'AI \u6b63\u5728\u8865\u5168...') -ForegroundColor DarkGray
     try {
-        $timer = [System.Diagnostics.Stopwatch]::StartNew()
-        $result = Invoke-TerminalAiJson -Mode complete -Text $ctx.Text
-        $timer.Stop()
+        $result = Invoke-TerminalAiJson -Mode complete -Text $text
         if ($result.completion) {
-            Write-Host "AI completion: $($result.completion)" -ForegroundColor Green
-            Write-Host "Summary: $($result.summary)" -ForegroundColor DarkGray
-            Write-Host "Done in $([math]::Round($timer.Elapsed.TotalSeconds, 1))s" -ForegroundColor DarkGray
+            Write-Host ((L '\u8865\u5168\uff1a') + $result.completion) -ForegroundColor Green
             [Microsoft.PowerShell.PSConsoleReadLine]::Insert($result.completion)
-        } else { Write-Host "AI returned no direct completion." -ForegroundColor Yellow }
-    } catch { Write-Host "AI completion failed: $($_.Exception.Message)" -ForegroundColor Red }
+        } else {
+            Write-Host (L '\u6ca1\u6709\u53ef\u76f4\u63a5\u63d2\u5165\u7684\u8865\u5168\u3002') -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host ((L '\u8865\u5168\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
+    }
     [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
-
 function Copy-TerminalAiCompletion {
-    $ctx = Get-TerminalAiContext
-    if (-not $ctx.Text.Trim()) { return }
+    $text = Get-TerminalAiContext
+    if (-not $text.Trim()) { return }
     try {
-        Write-Host "`nAI completion is working..." -ForegroundColor DarkGray
-        $timer = [System.Diagnostics.Stopwatch]::StartNew()
-        $result = Invoke-TerminalAiJson -Mode complete -Text $ctx.Text
-        $timer.Stop()
+        $result = Invoke-TerminalAiJson -Mode complete -Text $text
         if ($result.completion) {
             Set-Clipboard -Value $result.completion
-            Write-Host "`nAI completion copied: $($result.completion)" -ForegroundColor Green
-            Write-Host "Done in $([math]::Round($timer.Elapsed.TotalSeconds, 1))s" -ForegroundColor DarkGray
-        } else { Write-Host "`nAI returned no direct completion." -ForegroundColor Yellow }
-    } catch { Write-Host "`nAI completion failed: $($_.Exception.Message)" -ForegroundColor Red }
+            Write-Host ((L '\u8865\u5168\u5df2\u590d\u5236\uff1a') + $result.completion) -ForegroundColor Green
+        }
+    } catch {
+        Write-Host ((L '\u590d\u5236\u8865\u5168\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
+    }
     [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
-
 function Invoke-TerminalAiClipboard {
     param(
         [ValidateSet("explain", "complete", "fix")]
@@ -591,7 +468,7 @@ function Invoke-TerminalAiClipboard {
         [switch]$Copy
     )
     $text = Get-Clipboard -Raw
-    if (-not $text.Trim()) { Write-Host "Clipboard is empty." -ForegroundColor Yellow; return }
+    if (-not $text.Trim()) { Write-Host (L '\u526a\u8d34\u677f\u4e3a\u7a7a\u3002') -ForegroundColor Yellow; return }
     Invoke-TerminalAiHelper -Mode $Mode -Text $text -Window:$Window -Copy:$Copy
 }
 
@@ -608,10 +485,9 @@ Set-Alias taih-panel Show-TerminalAiPanel -Force
 Set-Alias taih-clip Invoke-TerminalAiClipboard -Force
 Set-Alias taih-fix Show-TerminalAiFixWindow -Force
 
-Write-Host "terminal-ai-helper loaded:" -ForegroundColor DarkCyan
-Write-Host "  Alt+/        explain selected text or current command"
-Write-Host "  Alt+?        open or update the docked manager panel"
-Write-Host "  Alt+Shift+/  same as Alt+? on many keyboards"
-Write-Host "  Ctrl+Space   insert AI completion"
-Write-Host "  Alt+Shift+C  copy AI completion"
-Write-Host "  Alt+Shift+F  diagnose selected text or current command"
+Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5df2\u52a0\u8f7d\uff1a') -ForegroundColor DarkCyan
+Write-Host (L '  Alt+/        \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4')
+Write-Host (L '  Alt+?        \u6253\u5f00\u7ba1\u7406\u9762\u677f')
+Write-Host (L '  Ctrl+Space   \u63d2\u5165 AI \u8865\u5168')
+Write-Host (L '  Alt+Shift+C  \u590d\u5236 AI \u8865\u5168')
+Write-Host (L '  Alt+Shift+F  \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4')
