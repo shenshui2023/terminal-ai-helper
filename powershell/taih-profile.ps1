@@ -654,6 +654,36 @@ function Get-TerminalAiForegroundHandle {
     }
 }
 
+function Ensure-TerminalAiWin32Extra {
+    try {
+        if ("TaihWin32Extra" -as [type]) { return }
+        Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class TaihWin32Extra {
+  [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+}
+"@
+    } catch {}
+}
+
+function Show-TerminalAiProcessWindow {
+    param([int]$ProcessId)
+    try {
+        Ensure-TerminalAiWin32Extra
+        $process = Get-Process -Id $ProcessId -ErrorAction Stop
+        $handle = $process.MainWindowHandle
+        if ($handle -and $handle.ToInt64() -gt 0 -and [TaihWin32Extra]::IsWindow($handle)) {
+            [TaihWin32Extra]::ShowWindow($handle, 5) | Out-Null
+            [TaihWin32Extra]::SetForegroundWindow($handle) | Out-Null
+            return $true
+        }
+    } catch {}
+    return $false
+}
+
 function Get-TerminalAiCursorScreenPoint {
     $rect = Get-TerminalAiForegroundRect
     $left = 0
@@ -916,10 +946,18 @@ function Show-TerminalAiPanel {
     if ($existingPid) {
         $existing = Get-Process -Id ([int]$existingPid) -ErrorAction SilentlyContinue
         if ($existing) {
-            return
+            if (Show-TerminalAiProcessWindow -ProcessId ([int]$existingPid)) {
+                return
+            }
+            Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
         }
     }
-    Start-Process -FilePath "powershell" -ArgumentList $args -WindowStyle Hidden | Out-Null
+    try {
+        Start-Process -FilePath "powershell" -ArgumentList $args -WindowStyle Hidden -ErrorAction Stop | Out-Null
+    } catch {
+        Write-Host ((L '\u9762\u677f\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
+        Write-Host "  powershell $($args -join ' ')" -ForegroundColor DarkGray
+    }
 }
 
 function Invoke-TerminalAiHelper {
@@ -956,6 +994,24 @@ function Show-TerminalAiUsage { Invoke-TerminalAiHelper -Mode explain -Text (Get
 function Show-TerminalAiUsageWindow { Show-TerminalAiPanel -InitialText (Get-TerminalAiContext) -Mode explain; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
 function Show-TerminalAiFixWindow { $text = Get-TerminalAiContext; Show-TerminalAiPanel -InitialText $text -Mode fix; [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt() }
 function Complete-TerminalAiCommand {
+    $text = Get-TerminalAiContext
+    if (-not $text.Trim()) { return }
+    Write-Host ""
+    Write-Host (L 'AI \u6b63\u5728\u8865\u5168...') -ForegroundColor DarkGray
+    try {
+        $result = Invoke-TerminalAiJson -Mode complete -Text $text
+        if ($result.completion) {
+            Write-Host ((L '\u8865\u5168\uff1a') + $result.completion) -ForegroundColor Green
+            [Microsoft.PowerShell.PSConsoleReadLine]::Insert($result.completion)
+        } else {
+            Write-Host (L '\u6ca1\u6709\u53ef\u76f4\u63a5\u63d2\u5165\u7684\u8865\u5168\u3002') -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host ((L '\u8865\u5168\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
+    }
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+}
+function Show-TerminalAiCompletionPopupForCurrentCommand {
     $state = Get-TerminalAiLineState
     $text = [string]$state.CurrentLine
     if (-not $text.Trim()) { return }
@@ -963,13 +1019,11 @@ function Complete-TerminalAiCommand {
         $choice = Show-TerminalAiCompletionPopup -Prefix $text
         if ($choice -and $choice.Trim()) {
             [Microsoft.PowerShell.PSConsoleReadLine]::Replace($state.LineStart, $state.LineLength, $choice)
-        } else {
-            [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
         }
     } catch {
-        Write-Host ((L '\u8865\u5168\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
-        [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
+        Write-Host ((L '\u8865\u5168\u5019\u9009\u6846\u5931\u8d25\uff1a') + $_.Exception.Message) -ForegroundColor Red
     }
+    [Microsoft.PowerShell.PSConsoleReadLine]::InvokePrompt()
 }
 function Copy-TerminalAiCompletion {
     $text = Get-TerminalAiContext
@@ -997,6 +1051,16 @@ function Invoke-TerminalAiClipboard {
     Invoke-TerminalAiHelper -Mode $Mode -Text $text -Window:$Window -Copy:$Copy
 }
 
+function Reset-TerminalAiPanels {
+    $panelDir = Join-Path $env:USERPROFILE ".terminal-ai-helper\panels"
+    if (Test-Path -LiteralPath $panelDir) {
+        Remove-Item -Path (Join-Path $panelDir "*.pid"), (Join-Path $panelDir "*.command.json") -Force -ErrorAction SilentlyContinue
+        Write-Host ((L '\u5df2\u6e05\u7406\u9762\u677f\u72b6\u6001\uff1a') + $panelDir) -ForegroundColor Green
+    } else {
+        Write-Host (L '\u6ca1\u6709\u627e\u5230\u9762\u677f\u72b6\u6001\u76ee\u5f55\u3002') -ForegroundColor Yellow
+    }
+}
+
 function Show-TerminalAiKeyStatus {
     Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5feb\u6377\u952e\u72b6\u6001\uff1a') -ForegroundColor DarkCyan
     Write-Host "  Profile: $($PROFILE.CurrentUserCurrentHost)"
@@ -1004,12 +1068,22 @@ function Show-TerminalAiKeyStatus {
     Write-Host "  PSReadLine: $((Get-Module PSReadLine).Version)"
     Write-Host ""
     Get-PSReadLineKeyHandler -Bound |
-        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F") } |
+        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F", "F2", "F3", "F4", "F8") } |
         Select-Object Key,Function,Description |
         Format-Table -AutoSize
     Write-Host (L '\u5982\u679c\u5217\u8868\u4e3a\u7a7a\uff0c\u8bf7\u5148\u8fd0\u884c\uff1a') -ForegroundColor Yellow
     Write-Host "  . `"$PSCommandPath`""
-    Write-Host (L '\u5982 Ctrl+Space \u65e0\u53cd\u5e94\uff0c\u901a\u5e38\u662f\u8f93\u5165\u6cd5\u6216 Windows Terminal \u62a2\u5360\uff1b\u53ef\u5148\u7528 Alt+? \u6216\u547d\u4ee4 taih-panel\u3002') -ForegroundColor Yellow
+    Write-Host (L '\u5982 Alt/Ctrl \u7ec4\u5408\u952e\u65e0\u53cd\u5e94\uff0c\u901a\u5e38\u662f\u8f93\u5165\u6cd5\u6216 Windows Terminal \u62a2\u5360\uff1b\u8bf7\u8bd5 F2/F3/F4/F8 \u5907\u7528\u952e\u3002') -ForegroundColor Yellow
+}
+
+function Start-TerminalAiWhatKey {
+    Write-Host (L '\u8bf7\u6309\u4e00\u4e2a\u9700\u8981\u8bca\u65ad\u7684\u5feb\u6377\u952e\uff0cPSReadLine \u4f1a\u663e\u793a\u5b83\u5b9e\u9645\u6536\u5230\u7684\u952e\u540d\u3002') -ForegroundColor Yellow
+    try {
+        [Microsoft.PowerShell.PSConsoleReadLine]::WhatIsKey()
+    } catch {
+        Write-Host ((L '\u6309\u952e\u8bca\u65ad\u65e0\u6cd5\u542f\u52a8\uff1a') + $_.Exception.Message) -ForegroundColor Red
+        Write-Host (L '\u4f60\u4e5f\u53ef\u4ee5\u8fd0\u884c\uff1aGet-PSReadLineKeyHandler -Bound') -ForegroundColor Yellow
+    }
 }
 
 Set-PSReadLineKeyHandler -Chord "Alt+/" -ScriptBlock { Show-TerminalAiUsage }
@@ -1020,6 +1094,10 @@ Set-PSReadLineKeyHandler -Chord "Alt+C" -ScriptBlock { Copy-TerminalAiCompletion
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+F" -ScriptBlock { Show-TerminalAiFixWindow }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+F" -ScriptBlock { Show-TerminalAiFixWindow }
+Set-PSReadLineKeyHandler -Chord "F2" -ScriptBlock { Show-TerminalAiUsage }
+Set-PSReadLineKeyHandler -Chord "F3" -ScriptBlock { Show-TerminalAiPanel }
+Set-PSReadLineKeyHandler -Chord "F4" -ScriptBlock { Complete-TerminalAiCommand }
+Set-PSReadLineKeyHandler -Chord "F8" -ScriptBlock { Show-TerminalAiFixWindow }
 
 Set-Alias taih-current Show-TerminalAiUsage -Force
 Set-Alias taih-popup Show-TerminalAiUsageWindow -Force
@@ -1027,10 +1105,16 @@ Set-Alias taih-panel Show-TerminalAiPanel -Force
 Set-Alias taih-clip Invoke-TerminalAiClipboard -Force
 Set-Alias taih-fix Show-TerminalAiFixWindow -Force
 Set-Alias taih-keys Show-TerminalAiKeyStatus -Force
+Set-Alias taih-what-key Start-TerminalAiWhatKey -Force
+Set-Alias taih-complete-popup Show-TerminalAiCompletionPopupForCurrentCommand -Force
+Set-Alias taih-panel-reset Reset-TerminalAiPanels -Force
 
 Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5df2\u52a0\u8f7d\uff1a') -ForegroundColor DarkCyan
 Write-Host (L '  Alt+/        \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4')
 Write-Host (L '  Alt+?        \u6253\u5f00\u7ba1\u7406\u9762\u677f\uff08\u5f88\u591a\u952e\u76d8\u4e0a Alt+Shift+/ \u4f1a\u663e\u793a\u4e3a Alt+?\uff09')
-Write-Host (L '  Ctrl+Space   \u6253\u5f00\u667a\u80fd\u8865\u5168\u5019\u9009\u6846')
+Write-Host (L '  Ctrl+Space   \u8865\u5168\u5e76\u76f4\u63a5\u63d2\u5165\uff08\u7a33\u5b9a\u6a21\u5f0f\uff09')
 Write-Host (L '  Alt+C        \u590d\u5236 AI \u8865\u5168\uff08Alt+Shift+C \u5728\u67d0\u4e9b\u7ec8\u7aef\u4f1a\u88ab\u8bc6\u522b\u4e3a Alt+C\uff09')
 Write-Host (L '  Alt+F        \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4\uff08Alt+Shift+F \u540c\u7406\uff09')
+Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u8865\u5168/\u8bca\u65ad')
+Write-Host (L '  taih-complete-popup  \u624b\u52a8\u6253\u5f00\u53ef\u7f16\u8f91\u8865\u5168\u5019\u9009\u6846\uff08\u5b9e\u9a8c\uff09')
+Write-Host (L '  taih-panel-reset     \u6e05\u7406\u5361\u4f4f\u7684\u9762\u677f\u72b6\u6001')

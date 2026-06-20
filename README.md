@@ -76,9 +76,26 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 | --- | --- | --- |
 | `Alt+/` | 无 | 解释当前命令行里选中的文本；没有选中时解释当前命令 |
 | `Alt+?` | `Alt+Shift+/` | 打开管理面板 |
-| `Ctrl+Space` | 无 | 在光标下方打开智能补全候选框，选择或编辑后插入 |
+| `Ctrl+Space` | 无 | 稳定补全：生成 AI 补全文本并直接插入 |
 | `Alt+C` | `Alt+Shift+C` | 复制 AI 补全到剪贴板 |
 | `Alt+F` | `Alt+Shift+F` | 诊断当前命令或报错 |
+
+备用功能键：
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `F2` | 解释当前命令 |
+| `F3` | 打开管理面板 |
+| `F4` | 稳定补全：生成 AI 补全文本并直接插入 |
+| `F8` | 诊断当前命令或报错 |
+
+如果某个组合键没反应，运行 `taih-what-key`，然后按下那个快捷键，查看 PowerShell 实际收到的键名。运行 `taih-keys` 可以查看当前已注册的快捷键。
+
+可编辑补全候选框保留为实验入口，不再默认绑定到快捷键，避免影响稳定路径：
+
+```powershell
+taih-complete-popup
+```
 
 ### 常用命令别名
 
@@ -131,7 +148,7 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style cus
 
 面板左侧窄栏是历史记录，点击历史项会回填命令；如果历史里保存了输出，也会直接显示。历史区默认较窄，优先把空间留给输出区。同一个终端再次使用 `Alt+?`、`Alt+Shift+/` 或 `taih-panel` 时，默认更新这块面板，不再反复弹出新窗口。
 
-`Ctrl+Space` 会在当前终端光标附近打开智能补全候选框。候选框会先显示本地快速建议，同时后台请求 AI 候选；你可以选择候选，也可以在下方输入框直接修改完整命令，然后按 Enter 插回当前命令行。
+`Ctrl+Space` 和 `F4` 使用稳定补全路径：生成 AI 补全文本后直接插入当前命令行。可编辑候选框可以通过 `taih-complete-popup` 手动打开。
 
 缓存分两层：
 

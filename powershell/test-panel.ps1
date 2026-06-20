@@ -26,12 +26,12 @@ Add-Type -AssemblyName System.Windows.Forms
 
 Write-Host "test: hotkeys and aliases are registered"
 $boundKeys = @(Get-PSReadLineKeyHandler -Bound | Where-Object { $_.Function -eq "CustomAction" } | ForEach-Object { $_.Key })
-foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar")) {
+foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar", "F2", "F3", "F4", "F8")) {
     if ($boundKeys -notcontains $key) {
         throw "missing hotkey: $key"
     }
 }
-foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys")) {
+foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys", "taih-what-key", "taih-complete-popup", "taih-panel-reset")) {
     if (-not (Get-Alias $aliasName -ErrorAction SilentlyContinue)) {
         throw "missing alias: $aliasName"
     }
