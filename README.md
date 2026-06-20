@@ -2,6 +2,8 @@
 
 一个面向 Windows 终端的 AI 命令助手。它可以解释命令、诊断报错、补全当前命令，并提供一个停靠在终端右侧的管理面板。
 
+项目结构说明见：[docs/项目结构.md](docs/项目结构.md)。
+
 ## 主要功能
 
 - `Ctrl+Space` 在当前终端光标附近打开智能补全候选框。
@@ -297,11 +299,13 @@ journalctl -u <服务名> -n 80 --no-pager | taih-panel fix
 
 ```powershell
 npm run check
-powershell -NoProfile -ExecutionPolicy Bypass -File .\powershell\test-panel.ps1 -SkipApi
+npm test
 ```
 
-`test-panel.ps1` 会检查：
+`npm test` 会检查：
 
+- Node.js 入口和模块语法。
+- VS Code 扩展入口语法。
 - PowerShell 脚本能解析和加载。
 - 快捷键和别名已注册。
 - 本地补全候选可用。

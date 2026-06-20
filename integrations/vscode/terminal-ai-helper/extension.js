@@ -77,7 +77,7 @@ function openLocalPanel(mode, text) {
   if (!ensureCliPath(config.cliPath)) return;
 
   const root = projectRootFromCli(config.cliPath);
-  const panelScript = path.join(root, "powershell", "panel.ps1");
+  const panelScript = path.join(root, "apps", "powershell", "panel.ps1");
   if (!fs.existsSync(panelScript)) {
     vscode.window.showErrorMessage(`找不到面板脚本：${panelScript}`);
     return;

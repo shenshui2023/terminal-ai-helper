@@ -4,11 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { requestCommandHelp } from "./api.js";
-import { buildPrompt } from "./prompts.js";
-import { renderHuman, renderJson, renderRaw } from "./render.js";
+import { requestCommandHelp } from "../core/api.js";
+import { buildPrompt } from "../ai/prompts.js";
+import { renderHuman, renderJson, renderRaw } from "../core/render.js";
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -61,7 +61,7 @@ function openPanelFromServer({ mode, text, source, shell, session }) {
     throw new Error("panel mode is only supported on local Windows.");
   }
 
-  const panelScript = path.join(rootDir, "powershell", "panel.ps1");
+  const panelScript = path.join(rootDir, "apps", "powershell", "panel.ps1");
   if (!fs.existsSync(panelScript)) {
     throw new Error(`panel script not found: ${panelScript}`);
   }

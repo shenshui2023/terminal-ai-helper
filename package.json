@@ -8,7 +8,9 @@
   },
   "scripts": {
     "start": "node ./bin/taih.js",
-    "check": "node --check ./bin/taih.js && node --check ./src/api.js && node --check ./src/clipboard.js && node --check ./src/config.js && node --check ./src/local-help.js && node --check ./src/prompts.js && node --check ./src/render.js && node --check ./src/server.js && node --check ./src/store.js && node --check ./integrations/vscode/terminal-ai-helper/extension.js"
+    "check": "node --check ./bin/taih.js && node --check ./apps/cli/main.js && node --check ./src/core/api.js && node --check ./src/core/clipboard.js && node --check ./src/core/config.js && node --check ./src/core/render.js && node --check ./src/core/store.js && node --check ./src/ai/prompts.js && node --check ./src/knowledge/local-help.js && node --check ./src/server/http-server.js && node --check ./integrations/vscode/terminal-ai-helper/extension.js",
+    "test": "npm run check && powershell -NoProfile -ExecutionPolicy Bypass -File ./tests/powershell/panel.ps1 -SkipApi",
+    "test:api": "node ./bin/taih.js complete --json --no-cache -- \"kube get svc\""
   },
   "engines": {
     "node": ">=20"
