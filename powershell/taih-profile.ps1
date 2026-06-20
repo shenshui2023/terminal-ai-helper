@@ -1885,6 +1885,7 @@ function Show-TerminalAiCompletionPopup {
         if ($value.Trim()) {
             Show-TerminalAiPanel -InitialText $value -Mode explain
             $status.Text = L '\u5df2\u6253\u5f00\u89e3\u91ca\u9762\u677f'
+            $form.Close()
         }
     })
     $close.Add_Click({ $form.Close() })

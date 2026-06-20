@@ -88,6 +88,9 @@ if ($profileSource -notmatch '\$process\.WaitForExit\(\)') {
 if ($profileSource -notmatch '\$explain = New-CompletionButton' -or $profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain') {
     throw "completion popup is missing the explain action"
 }
+if ($profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain[\s\S]{0,160}\$form\.Close\(\)') {
+    throw "completion popup explain action must close the modal popup"
+}
 if ($profileSource -notmatch 'if \(\$added -gt 0\)' -or $profileSource -notmatch 'exit=\$\(\$process\.ExitCode\)') {
     throw "completion popup should prefer parsed AI candidates before reporting process errors"
 }
