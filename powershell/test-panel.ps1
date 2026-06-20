@@ -102,6 +102,9 @@ $panelSource = Get-Content -LiteralPath $panelPath -Raw
 if ($panelSource -notmatch '\$form\.FormBorderStyle = "None"') {
     throw "manager panel should use a borderless terminal-like shell"
 }
+if ($panelSource -notmatch '\$dockOverlap = 10' -or $panelSource -notmatch '\$anchor\.X \+ \$anchor\.W - \$dockOverlap') {
+    throw "manager panel should overlap the terminal edge to avoid a visible gap"
+}
 
 Write-Host "test: panel launcher is non-blocking"
 $env:TAIH_TEST_NO_PANEL_START = "1"
