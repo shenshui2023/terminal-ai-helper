@@ -80,6 +80,15 @@ if ($apiSource -notmatch 'input: `\$\{prompt\.system\}\\n\\n\$\{prompt\.user\}`'
     throw "structured JSON request must use single string input for qyapi compatibility"
 }
 
+Write-Host "test: completion popup handles AI process and explain action"
+$profileSource = Get-Content -LiteralPath $profilePath -Raw
+if ($profileSource -notmatch '\$process\.WaitForExit\(\)') {
+    throw "completion popup must wait for the AI process before checking ExitCode"
+}
+if ($profileSource -notmatch '\$explain = New-CompletionButton' -or $profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain') {
+    throw "completion popup is missing the explain action"
+}
+
 Write-Host "test: panel launcher is non-blocking"
 $env:TAIH_TEST_NO_PANEL_START = "1"
 try {

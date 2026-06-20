@@ -1576,8 +1576,6 @@ function Show-TerminalAiCompletionPopup {
     $edit.SelectionStart = $edit.TextLength
 
     $script:TaihCompletionChoice = $null
-    $stdoutFile = [System.IO.Path]::GetTempFileName()
-    $stderrFile = [System.IO.Path]::GetTempFileName()
     $process = $null
 
     if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
@@ -1585,7 +1583,18 @@ function Show-TerminalAiCompletionPopup {
     } else {
         $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $Prefix) | ForEach-Object { Q $_ }) -join " "
         try {
-            $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
+            $psi = New-Object System.Diagnostics.ProcessStartInfo
+            $psi.FileName = "node"
+            $psi.Arguments = $argumentLine
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $psi.RedirectStandardError = $true
+            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
+            $psi.CreateNoWindow = $true
+            $process = New-Object System.Diagnostics.Process
+            $process.StartInfo = $psi
+            [void]$process.Start()
         } catch {
             $status.Text = L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff0c\u53ef\u5148\u7528\u672c\u5730\u5019\u9009'
         }
@@ -1705,7 +1714,7 @@ function Show-TerminalAiCompletionPopup {
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 36)))
 
     $hint = New-Object System.Windows.Forms.Label
-    $hint.Text = L '\u672c\u5730\u5019\u9009\u7acb\u5373\u663e\u793a\uff0cAI \u5019\u9009\u540e\u53f0\u8ffd\u52a0\uff1bEnter \u63d2\u5165\uff0cEsc \u53d6\u6d88\u3002'
+    $hint.Text = L '\u672c\u5730\u5019\u9009\u7acb\u5373\u663e\u793a\uff0cAI \u5019\u9009\u540e\u53f0\u8ffd\u52a0\uff1bEnter \u63d2\u5165\uff0cCtrl+E/F1 \u89e3\u91ca\uff0cEsc \u53d6\u6d88\u3002'
     $hint.Dock = "Fill"
     $hint.ForeColor = $muted
     $hint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
@@ -1751,6 +1760,7 @@ function Show-TerminalAiCompletionPopup {
     $insert = New-CompletionButton (L '\u63d2\u5165')
     $insert.BackColor = $accent
     $copy = New-CompletionButton (L '\u590d\u5236')
+    $explain = New-CompletionButton (L '\u89e3\u91ca')
     $close = New-CompletionButton (L '\u53d6\u6d88')
     $status = New-Object System.Windows.Forms.Label
     $status.Text = L '\u672c\u5730\u5019\u9009\u5df2\u52a0\u8f7d\uff0cAI \u6b63\u5728\u540e\u53f0\u8865\u5145...'
@@ -1760,6 +1770,7 @@ function Show-TerminalAiCompletionPopup {
 
     [void]$bottom.Controls.Add($close)
     [void]$bottom.Controls.Add($copy)
+    [void]$bottom.Controls.Add($explain)
     [void]$bottom.Controls.Add($insert)
     [void]$bottom.Controls.Add($status)
     [void]$root.Controls.Add($hint, 0, 0)
@@ -1800,14 +1811,17 @@ function Show-TerminalAiCompletionPopup {
             if (-not $process.HasExited) { return }
             $timer.Stop()
             try {
+                try { $process.WaitForExit() } catch {}
+                try { $process.Refresh() } catch {}
+                $raw = ""
+                $err = ""
+                try { $raw = $process.StandardOutput.ReadToEnd().Trim() } catch {}
+                try { $err = $process.StandardError.ReadToEnd().Trim() } catch {}
                 if ($process.ExitCode -ne 0) {
-                    $err = ""
-                    try { $err = [System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
                     if ($err.Length -gt 100) { $err = $err.Substring(0, 100) + "..." }
                     $status.Text = if ($err) { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + $err } else { L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009' }
                     return
                 }
-                $raw = [System.IO.File]::ReadAllText($stdoutFile, [System.Text.Encoding]::UTF8)
                 $result = $raw | ConvertFrom-Json
                 $before = $list.Items.Count
                 $candidates = New-Object System.Collections.Generic.List[string]
@@ -1829,7 +1843,6 @@ function Show-TerminalAiCompletionPopup {
             } catch {
                 $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
             } finally {
-                Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
                 try { $process.Dispose() } catch {}
             }
         })
@@ -1852,22 +1865,31 @@ function Show-TerminalAiCompletionPopup {
     $insert.Add_Click($accept)
     $list.Add_DoubleClick($accept)
     $copy.Add_Click({ if ($edit.Text) { Set-Clipboard -Value $edit.Text; $status.Text = L '\u5df2\u590d\u5236' } })
+    $explain.Add_Click({
+        $value = [string]$edit.Text
+        if ($value.Trim()) {
+            Show-TerminalAiPanel -InitialText $value -Mode explain
+            $status.Text = L '\u5df2\u6253\u5f00\u89e3\u91ca\u9762\u677f'
+        }
+    })
     $close.Add_Click({ $form.Close() })
     $form.Add_KeyDown({
         if ($_.KeyCode -eq "Escape") { $form.Close() }
         elseif ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; & $accept }
+        elseif ($_.KeyCode -eq "F1" -or ($_.Control -and $_.KeyCode -eq "E")) {
+            $_.SuppressKeyPress = $true
+            $explain.PerformClick()
+        }
     })
     $form.Add_FormClosed({
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
-        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
     })
 
     if ($env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -eq "1") {
         $script:TaihCompletionChoice = [string]$edit.Text
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
-        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
         $form.Dispose()
         return $script:TaihCompletionChoice
     }
