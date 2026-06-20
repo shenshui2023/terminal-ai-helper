@@ -110,10 +110,10 @@ async function main() {
     const sub = args.shift();
     if (sub === "clear") {
       clearCache();
-      console.log("Cache cleared.");
+      console.log("缓存已清理。");
       return;
     }
-    console.error("Usage: taih cache clear");
+    console.error("用法: taih cache clear");
     process.exitCode = 2;
     return;
   }
@@ -159,6 +159,7 @@ async function main() {
     console.log(output);
     return;
   }
+
   if ((stream || String(outputStyle).toLowerCase() === "custom") && !asJson && !asRaw) {
     const cacheMode = `stream:${mode}:${outputStyle}`;
     const cacheText = `${text}\0${extraInstructions}`;

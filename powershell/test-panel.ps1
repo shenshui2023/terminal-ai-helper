@@ -31,7 +31,7 @@ foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar", "F2", "F
         throw "missing hotkey: $key"
     }
 }
-foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys", "taih-what-key", "taih-complete-popup", "taih-panel-reset")) {
+foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys", "taih-what-key", "taih-complete-popup", "taih-complete-stable", "taih-panel-reset")) {
     if (-not (Get-Alias $aliasName -ErrorAction SilentlyContinue)) {
         throw "missing alias: $aliasName"
     }
@@ -41,6 +41,24 @@ Write-Host "test: local completion candidates are available"
 $localCompletions = @(Get-TerminalAiLocalCompletions -Prefix "git st")
 if (-not ($localCompletions | Where-Object { $_ -like "git status*" })) {
     throw "missing local git status completion"
+}
+$sshCandidate = (L '\u003c\u7528\u6237\u540d\u003e') + "@" + (L '\u003c\u4e3b\u673a\u003e')
+$sshCompletions = @(Get-TerminalAiLocalCompletions -Prefix "ssh")
+if (-not ($sshCompletions | Where-Object { $_ -like "ssh *$sshCandidate*" })) {
+    throw "missing readable ssh completion candidate"
+}
+
+Write-Host "test: completion popup can render local candidates without API"
+$env:TAIH_TEST_NO_AI_COMPLETION = "1"
+$env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG = "1"
+try {
+    $choice = Show-TerminalAiCompletionPopup -Prefix "ssh"
+    if ($choice -notlike "ssh *$sshCandidate*") {
+        throw "completion popup did not return a readable local ssh candidate: $choice"
+    }
+} finally {
+    Remove-Item Env:\TAIH_TEST_NO_AI_COMPLETION -ErrorAction SilentlyContinue
+    Remove-Item Env:\TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -ErrorAction SilentlyContinue
 }
 
 Write-Host "test: panel launcher is non-blocking"
