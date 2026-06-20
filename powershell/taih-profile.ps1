@@ -1656,7 +1656,7 @@ Set-PSReadLineKeyHandler -Chord "Alt+F" -ScriptBlock { Show-TerminalAiFixWindow 
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+F" -ScriptBlock { Show-TerminalAiFixWindow }
 Set-PSReadLineKeyHandler -Chord "F2" -ScriptBlock { Show-TerminalAiUsage }
 Set-PSReadLineKeyHandler -Chord "F3" -ScriptBlock { Show-TerminalAiPanel }
-Set-PSReadLineKeyHandler -Chord "F4" -ScriptBlock { Complete-TerminalAiCommand }
+Set-PSReadLineKeyHandler -Chord "F4" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand }
 Set-PSReadLineKeyHandler -Chord "F8" -ScriptBlock { Show-TerminalAiFixWindow }
 
 Set-Alias taih-current Show-TerminalAiUsage -Force
@@ -1676,7 +1676,7 @@ Write-Host (L '  Alt+?        \u6253\u5f00\u7ba1\u7406\u9762\u677f\uff08\u5f88\u
 Write-Host (L '  Ctrl+Space   \u6253\u5f00\u667a\u80fd\u8865\u5168\u5019\u9009\u6846\uff08\u5148\u672c\u5730\uff0cAI \u540e\u53f0\u8865\u5145\uff09')
 Write-Host (L '  Alt+C        \u590d\u5236 AI \u8865\u5168\uff08Alt+Shift+C \u5728\u67d0\u4e9b\u7ec8\u7aef\u4f1a\u88ab\u8bc6\u522b\u4e3a Alt+C\uff09')
 Write-Host (L '  Alt+F        \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4\uff08Alt+Shift+F \u540c\u7406\uff09')
-Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u7a33\u5b9a\u8865\u5168/\u8bca\u65ad')
+Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u8865\u5168\u5019\u9009/\u8bca\u65ad')
 Write-Host (L '  taih-complete-popup  \u624b\u52a8\u6253\u5f00\u53ef\u7f16\u8f91\u8865\u5168\u5019\u9009\u6846')
 Write-Host (L '  taih-complete-stable \u4e0d\u5f39\u7a97\uff0c\u76f4\u63a5\u8bf7\u6c42 AI \u5e76\u63d2\u5165\u8865\u5168')
 Write-Host (L '  taih-panel-reset     \u6e05\u7406\u5361\u4f4f\u7684\u9762\u677f\u72b6\u6001')

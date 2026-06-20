@@ -161,14 +161,20 @@ function Move-PanelNearTerminal {
     param($Form)
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
     $anchor = Get-AnchorRect
-    $width = [Math]::Min(620, [Math]::Max(460, [int]($screen.Width * 0.30)))
+    $preferredWidth = [Math]::Min(760, [Math]::Max(560, [int]($screen.Width * 0.36)))
+    $rightSpace = if ($anchor.X -ge 0) { $screen.Right - ($anchor.X + $anchor.W) } else { 0 }
+    $width = if ($anchor.X -ge 0 -and $rightSpace -ge 420) {
+        [Math]::Min($preferredWidth, $rightSpace)
+    } else {
+        $preferredWidth
+    }
     $height = if ($anchor.H -gt 300) { [Math]::Min($anchor.H, $screen.Height) } else { [Math]::Min(820, [int]($screen.Height * 0.82)) }
     $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W } else { $screen.Right - $width - 16 }
     if (($x + $width) -gt $screen.Right) {
         $x = if ($anchor.X -ge 0) { $anchor.X - $width } else { $screen.Right - $width - 16 }
     }
-    if ($x -lt $screen.Left) { $x = $screen.Left + 8 }
-    if (($x + $width) -gt $screen.Right) { $x = $screen.Right - $width - 8 }
+    if ($x -lt $screen.Left) { $x = $screen.Left }
+    if (($x + $width) -gt $screen.Right) { $x = $screen.Right - $width }
     $y = if ($anchor.Y -ge 0) { $anchor.Y } else { $screen.Top + 24 }
     if ($y -lt $screen.Top) { $y = $screen.Top }
     if (($y + $height) -gt $screen.Bottom) { $height = $screen.Bottom - $y - 8 }
@@ -473,7 +479,8 @@ $output.ScrollBars = "Vertical"
 $split = New-Object System.Windows.Forms.SplitContainer
 $split.Dock = "Fill"
 $split.Orientation = "Vertical"
-$split.SplitterDistance = 84
+$split.SplitterDistance = 110
+$split.Panel1Collapsed = $true
 $split.BackColor = $bg
 
 $historyBox = New-Object System.Windows.Forms.ListBox
@@ -507,6 +514,7 @@ function New-Button([string]$Text) {
 $close = New-Button (L '\u5173\u95ed')
 $copy = New-Button (L '\u590d\u5236')
 $clear = New-Button (L '\u6e05\u7a7a')
+$historyToggle = New-Button (L '\u5386\u53f2')
 $clip = New-Button (L '\u8bfb\u526a\u8d34\u677f')
 $run = New-Button (L '\u6267\u884c')
 $run.BackColor = $accent
@@ -519,6 +527,7 @@ $status.Padding = New-Object System.Windows.Forms.Padding(0, 6, 12, 0)
 [void]$buttons.Controls.Add($close)
 [void]$buttons.Controls.Add($copy)
 [void]$buttons.Controls.Add($clear)
+[void]$buttons.Controls.Add($historyToggle)
 [void]$buttons.Controls.Add($clip)
 [void]$buttons.Controls.Add($run)
 [void]$buttons.Controls.Add($status)
@@ -553,6 +562,16 @@ $clip.Add_Click({
 })
 $copy.Add_Click({ Set-Clipboard -Value $output.Text; $status.Text = L '\u5df2\u590d\u5236' })
 $clear.Add_Click({ $output.Clear(); $status.Text = L '\u5df2\u6e05\u7a7a' })
+$historyToggle.Add_Click({
+    $split.Panel1Collapsed = -not $split.Panel1Collapsed
+    if (-not $split.Panel1Collapsed) {
+        Refresh-HistoryList -HistoryBox $historyBox
+        $split.SplitterDistance = [Math]::Min(140, [Math]::Max(90, [int]($form.Width * 0.22)))
+        $status.Text = L '\u5df2\u5c55\u5f00\u5386\u53f2'
+    } else {
+        $status.Text = L '\u5df2\u9690\u85cf\u5386\u53f2\uff0c\u8f93\u51fa\u533a\u5df2\u653e\u5927'
+    }
+})
 $close.Add_Click({ $form.Close() })
 
 Move-PanelNearTerminal -Form $form
