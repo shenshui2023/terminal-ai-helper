@@ -1330,7 +1330,7 @@ function Show-TerminalAiKeyStatus {
     Write-Host "  PSReadLine: $((Get-Module PSReadLine).Version)"
     Write-Host ""
     Get-PSReadLineKeyHandler -Bound |
-        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F", "F2", "F3", "F4", "F8") } |
+        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Ctrl+Shift+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F", "F2", "F3", "F4", "F8") } |
         Select-Object Key,Function,Description |
         Format-Table -AutoSize
     Write-Host (L '\u5982\u679c\u5217\u8868\u4e3a\u7a7a\uff0c\u8bf7\u5148\u8fd0\u884c\uff1a') -ForegroundColor Yellow
@@ -1665,10 +1665,222 @@ function Show-TerminalAiCompletionPopup {
     return $script:TaihCompletionChoice
 }
 
+function Show-TerminalAiCompletionPopup {
+    param([string]$Prefix)
+
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $bg = [System.Drawing.Color]::FromArgb(18, 18, 18)
+    $surface = [System.Drawing.Color]::FromArgb(30, 30, 30)
+    $fg = [System.Drawing.Color]::FromArgb(230, 230, 230)
+    $muted = [System.Drawing.Color]::FromArgb(150, 150, 150)
+    $accent = [System.Drawing.Color]::FromArgb(0, 122, 204)
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = L '\u667a\u80fd\u8865\u5168'
+    $form.StartPosition = "Manual"
+    $form.FormBorderStyle = "FixedSingle"
+    $form.ShowInTaskbar = $false
+    $form.TopMost = $true
+    $form.BackColor = $bg
+    $form.ForeColor = $fg
+    $form.Size = New-Object System.Drawing.Size(760, 260)
+    $form.KeyPreview = $true
+
+    $point = Get-TerminalAiCursorScreenPoint
+    $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $x = [Math]::Min([Math]::Max($screen.Left, $point.X), $screen.Right - $form.Width)
+    $y = [Math]::Min([Math]::Max($screen.Top, $point.Y + 2), $screen.Bottom - $form.Height)
+    $form.Location = New-Object System.Drawing.Point($x, $y)
+
+    $root = New-Object System.Windows.Forms.TableLayoutPanel
+    $root.Dock = "Fill"
+    $root.RowCount = 4
+    $root.ColumnCount = 1
+    $root.Padding = New-Object System.Windows.Forms.Padding(8)
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 36)))
+
+    $hint = New-Object System.Windows.Forms.Label
+    $hint.Text = L '\u672c\u5730\u5019\u9009\u7acb\u5373\u663e\u793a\uff0cAI \u5019\u9009\u540e\u53f0\u8ffd\u52a0\uff1bEnter \u63d2\u5165\uff0cEsc \u53d6\u6d88\u3002'
+    $hint.Dock = "Fill"
+    $hint.ForeColor = $muted
+    $hint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+
+    $list = New-Object System.Windows.Forms.ListBox
+    $list.Dock = "Fill"
+    $list.BackColor = $surface
+    $list.ForeColor = $fg
+    $list.BorderStyle = "FixedSingle"
+    $list.Font = New-Object System.Drawing.Font("Consolas", 10)
+
+    $edit = New-Object System.Windows.Forms.TextBox
+    $edit.Dock = "Fill"
+    $edit.BackColor = [System.Drawing.Color]::Black
+    $edit.ForeColor = $fg
+    $edit.BorderStyle = "FixedSingle"
+    $edit.Font = New-Object System.Drawing.Font("Consolas", 10)
+
+    $bottom = New-Object System.Windows.Forms.FlowLayoutPanel
+    $bottom.Dock = "Fill"
+    $bottom.FlowDirection = "RightToLeft"
+    $bottom.BackColor = $bg
+
+    function New-CompletionButton([string]$Text) {
+        $button = New-Object System.Windows.Forms.Button
+        $button.Text = $Text
+        $button.Width = 86
+        $button.Height = 28
+        $button.FlatStyle = "Flat"
+        $button.BackColor = $surface
+        $button.ForeColor = $fg
+        return $button
+    }
+
+    function Expand-CompletionCandidate([string]$Candidate) {
+        $value = ([string]$Candidate).Trim()
+        if (-not $value) { return "" }
+        if ($value.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) { return $value }
+        if ($value -match '^\S+(\s|$)' -and $value.Contains(" ")) { return $value }
+        return $Prefix + $value
+    }
+
+    $insert = New-CompletionButton (L '\u63d2\u5165')
+    $insert.BackColor = $accent
+    $copy = New-CompletionButton (L '\u590d\u5236')
+    $close = New-CompletionButton (L '\u53d6\u6d88')
+    $status = New-Object System.Windows.Forms.Label
+    $status.Text = L '\u672c\u5730\u5019\u9009\u5df2\u52a0\u8f7d\uff0cAI \u6b63\u5728\u540e\u53f0\u8865\u5145...'
+    $status.AutoSize = $true
+    $status.ForeColor = $muted
+    $status.Padding = New-Object System.Windows.Forms.Padding(0, 7, 12, 0)
+
+    [void]$bottom.Controls.Add($close)
+    [void]$bottom.Controls.Add($copy)
+    [void]$bottom.Controls.Add($insert)
+    [void]$bottom.Controls.Add($status)
+    [void]$root.Controls.Add($hint, 0, 0)
+    [void]$root.Controls.Add($list, 0, 1)
+    [void]$root.Controls.Add($edit, 0, 2)
+    [void]$root.Controls.Add($bottom, 0, 3)
+    [void]$form.Controls.Add($root)
+
+    foreach ($item in (Get-TerminalAiLocalCompletions -Prefix $Prefix)) {
+        Add-TerminalAiCompletionItem -ListBox $list -Value $item
+    }
+    if ($list.Items.Count -eq 0) {
+        Add-TerminalAiCompletionItem -ListBox $list -Value $Prefix
+    }
+    $edit.Text = [string]$list.SelectedItem
+    $edit.SelectionStart = $edit.TextLength
+
+    $script:TaihCompletionChoice = $null
+    $stdoutFile = [System.IO.Path]::GetTempFileName()
+    $stderrFile = [System.IO.Path]::GetTempFileName()
+    $process = $null
+
+    if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
+        $status.Text = L '\u4ec5\u52a0\u8f7d\u672c\u5730\u5019\u9009'
+    } else {
+        $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $Prefix) | ForEach-Object { Q $_ }) -join " "
+        try {
+            $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
+        } catch {
+            $status.Text = L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff0c\u53ef\u5148\u7528\u672c\u5730\u5019\u9009'
+        }
+    }
+
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 180
+    if ($process) {
+        $timer.Add_Tick({
+            if (-not $process.HasExited) { return }
+            $timer.Stop()
+            try {
+                if ($process.ExitCode -ne 0) {
+                    $err = ""
+                    try { $err = [System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
+                    if ($err.Length -gt 100) { $err = $err.Substring(0, 100) + "..." }
+                    $status.Text = if ($err) { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + $err } else { L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009' }
+                    return
+                }
+                $raw = [System.IO.File]::ReadAllText($stdoutFile, [System.Text.Encoding]::UTF8)
+                $result = $raw | ConvertFrom-Json
+                $before = $list.Items.Count
+                $candidates = New-Object System.Collections.Generic.List[string]
+                if ($result.completion) { [void]$candidates.Add([string]$result.completion) }
+                if ($result.completions) {
+                    foreach ($item in @($result.completions)) { [void]$candidates.Add([string]$item) }
+                }
+                if ($result.examples) {
+                    foreach ($item in @($result.examples)) {
+                        if ($item.command) { [void]$candidates.Add([string]$item.command) }
+                    }
+                }
+                foreach ($candidate in $candidates) {
+                    $full = Expand-CompletionCandidate $candidate
+                    Add-TerminalAiCompletionItem -ListBox $list -Value $full
+                }
+                $added = $list.Items.Count - $before
+                $status.Text = if ($added -gt 0) { (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added } else { L 'AI \u6ca1\u6709\u8fd4\u56de\u65b0\u5019\u9009' }
+            } catch {
+                $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
+            } finally {
+                Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+                try { $process.Dispose() } catch {}
+            }
+        })
+        $timer.Start()
+    }
+
+    $list.Add_SelectedIndexChanged({
+        if ($list.SelectedIndex -ge 0) {
+            $edit.Text = [string]$list.SelectedItem
+            $edit.SelectionStart = $edit.TextLength
+        }
+    })
+    $accept = {
+        $value = [string]$edit.Text
+        if ($value.Trim()) {
+            $script:TaihCompletionChoice = $value
+            $form.Close()
+        }
+    }
+    $insert.Add_Click($accept)
+    $list.Add_DoubleClick($accept)
+    $copy.Add_Click({ if ($edit.Text) { Set-Clipboard -Value $edit.Text; $status.Text = L '\u5df2\u590d\u5236' } })
+    $close.Add_Click({ $form.Close() })
+    $form.Add_KeyDown({
+        if ($_.KeyCode -eq "Escape") { $form.Close() }
+        elseif ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; & $accept }
+    })
+    $form.Add_FormClosed({
+        try { $timer.Stop(); $timer.Dispose() } catch {}
+        if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+    })
+
+    if ($env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -eq "1") {
+        $script:TaihCompletionChoice = [string]$edit.Text
+        try { $timer.Stop(); $timer.Dispose() } catch {}
+        if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        $form.Dispose()
+        return $script:TaihCompletionChoice
+    }
+
+    [void]$form.ShowDialog()
+    return $script:TaihCompletionChoice
+}
+
 Set-PSReadLineKeyHandler -Chord "Alt+/" -ScriptBlock { Show-TerminalAiUsage }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+/" -ScriptBlock { Show-TerminalAiUsageWindow }
 Set-PSReadLineKeyHandler -Chord "Alt+?" -ScriptBlock { Show-TerminalAiPanel }
 Set-PSReadLineKeyHandler -Chord "Ctrl+Spacebar" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand }
+try { Set-PSReadLineKeyHandler -Chord "Ctrl+Shift+Spacebar" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand } } catch {}
 Set-PSReadLineKeyHandler -Chord "Alt+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+F" -ScriptBlock { Show-TerminalAiFixWindow }
@@ -1693,6 +1905,7 @@ Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5df2\u52a0\u8f7d\uff1a') -Foregroun
 Write-Host (L '  Alt+/        \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4')
 Write-Host (L '  Alt+?        \u6253\u5f00\u7ba1\u7406\u9762\u677f\uff08\u5f88\u591a\u952e\u76d8\u4e0a Alt+Shift+/ \u4f1a\u663e\u793a\u4e3a Alt+?\uff09')
 Write-Host (L '  Ctrl+Space   \u6253\u5f00\u667a\u80fd\u8865\u5168\u5019\u9009\u6846\uff08\u5148\u672c\u5730\uff0cAI \u540e\u53f0\u8865\u5145\uff09')
+Write-Host (L '  Ctrl+Shift+Space  \u5907\u7528\u8865\u5168\u5019\u9009\uff08Ctrl+Space \u88ab\u8f93\u5165\u6cd5\u62a2\u5360\u65f6\u7528\uff09')
 Write-Host (L '  Alt+C        \u590d\u5236 AI \u8865\u5168\uff08Alt+Shift+C \u5728\u67d0\u4e9b\u7ec8\u7aef\u4f1a\u88ab\u8bc6\u522b\u4e3a Alt+C\uff09')
 Write-Host (L '  Alt+F        \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4\uff08Alt+Shift+F \u540c\u7406\uff09')
 Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u8865\u5168\u5019\u9009/\u8bca\u65ad')

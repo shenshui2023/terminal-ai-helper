@@ -37,14 +37,17 @@ function readWindowsUserEnv(name) {
 export function loadConfig() {
   const auth = readCodexAuth();
   const userApiKey = readWindowsUserEnv("OPENAI_API_KEY");
+  const userBaseUrl = readWindowsUserEnv("TAIH_BASE_URL");
+  const userModel = readWindowsUserEnv("TAIH_MODEL");
+  const userTimeoutMs = readWindowsUserEnv("TAIH_TIMEOUT_MS");
   const apiKey = process.env.OPENAI_API_KEY || userApiKey.value || auth.key;
   const authSource = process.env.OPENAI_API_KEY ? "OPENAI_API_KEY" : userApiKey.value ? userApiKey.source : auth.source;
   return {
-    baseUrl: process.env.TAIH_BASE_URL || "https://qyapi.cjyyswq.com",
-    model: process.env.TAIH_MODEL || "gpt-5.5",
+    baseUrl: process.env.TAIH_BASE_URL || userBaseUrl.value || "https://qyapi.cjyyswq.com",
+    model: process.env.TAIH_MODEL || userModel.value || "gpt-5.5",
     apiKey,
     authSource,
-    timeoutMs: Number(process.env.TAIH_TIMEOUT_MS || 30000),
+    timeoutMs: Number(process.env.TAIH_TIMEOUT_MS || userTimeoutMs.value || 30000),
     reasoningEffort: process.env.TAIH_REASONING_EFFORT || ""
   };
 }

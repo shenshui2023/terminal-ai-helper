@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import { loadConfig } from "../src/config.js";
 import { requestCommandHelp, requestCommandHelpTextStream } from "../src/api.js";
 import { buildPlainPrompt, buildPrompt } from "../src/prompts.js";
@@ -20,6 +21,10 @@ function usage() {
   taih history [--json]              查看最近的命令帮助历史
   taih cache clear                   清理本地缓存
   taih cache stats                   查看缓存和历史占用
+  taih config get                    查看当前配置
+  taih config set model <模型名>      写入用户级模型配置
+  taih config set base-url <地址>     写入用户级接口地址
+  taih config set timeout <毫秒>      写入用户级超时时间
   taih doctor                        检查本地配置
 
 选项:
@@ -65,6 +70,17 @@ async function readStdinIfPiped() {
 function readInstructions(filePath) {
   if (!filePath) return "";
   return fs.readFileSync(filePath, "utf8").trim();
+}
+
+function setUserEnv(name, value) {
+  if (process.platform !== "win32") {
+    throw new Error("config set currently supports Windows user environment variables only.");
+  }
+  execFileSync("reg.exe", ["add", "HKCU\\Environment", "/v", name, "/t", "REG_SZ", "/d", value, "/f"], {
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true
+  });
+  process.env[name] = value;
 }
 
 async function main() {
@@ -128,6 +144,40 @@ async function main() {
       return;
     }
     console.error("用法: taih cache clear | taih cache stats");
+    process.exitCode = 2;
+    return;
+  }
+
+  if (mode === "config") {
+    const sub = args.shift() || "get";
+    if (sub === "get") {
+      console.log("terminal-ai-helper config");
+      console.log(`  baseUrl: ${config.baseUrl}`);
+      console.log(`  model: ${config.model}`);
+      console.log(`  timeoutMs: ${config.timeoutMs}`);
+      console.log(`  authSource: ${config.authSource}`);
+      return;
+    }
+    if (sub === "set") {
+      const key = args.shift();
+      const value = args.join(" ").trim();
+      const map = {
+        model: "TAIH_MODEL",
+        "base-url": "TAIH_BASE_URL",
+        timeout: "TAIH_TIMEOUT_MS"
+      };
+      const envName = map[key];
+      if (!envName || !value) {
+        console.error("用法: taih config set model <模型名> | base-url <地址> | timeout <毫秒>");
+        process.exitCode = 2;
+        return;
+      }
+      setUserEnv(envName, value);
+      console.log(`已写入用户环境变量 ${envName}=${value}`);
+      console.log("当前终端如已打开很久，建议重新加载 profile 或重开终端。");
+      return;
+    }
+    console.error("用法: taih config get | taih config set model <模型名>");
     process.exitCode = 2;
     return;
   }

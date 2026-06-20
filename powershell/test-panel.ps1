@@ -65,6 +65,16 @@ try {
     Remove-Item Env:\TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -ErrorAction SilentlyContinue
 }
 
+Write-Host "test: AI completion schema can carry multiple candidates"
+$apiPath = Join-Path $root "src\api.js"
+$promptPath = Join-Path $root "src\prompts.js"
+if ((Get-Content -LiteralPath $apiPath -Raw) -notmatch "completions") {
+    throw "API normalization does not include completions array"
+}
+if ((Get-Content -LiteralPath $promptPath -Raw) -notmatch "3-6 useful alternative") {
+    throw "prompt does not ask for multiple AI completion candidates"
+}
+
 Write-Host "test: panel launcher is non-blocking"
 $env:TAIH_TEST_NO_PANEL_START = "1"
 try {

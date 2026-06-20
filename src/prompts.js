@@ -25,7 +25,8 @@ const schemaInstruction = `Return only compact JSON with this shape:
   "title": "short Chinese title",
   "summary": "one sentence",
   "confidence": "high|medium|low",
-  "completion": "exact text to append, or empty string",
+  "completion": "best exact text to append, or empty string",
+  "completions": ["alternative full commands or exact append texts"],
   "usage": ["clear usage point"],
   "examples": [
     {
@@ -77,7 +78,7 @@ function styleInstructions(outputStyle = "standard", extraInstructions = "") {
 export function buildPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
   const task = {
     explain: "Explain this terminal command. Include common usage, parameters, examples, and risks.",
-    complete: "Complete the current terminal command prefix. Prefer a safe, conventional continuation. The completion field must contain only text to append after the prefix.",
+    complete: "Complete the current terminal command prefix. Prefer safe, conventional continuations. Put the best exact append text in completion. Put 3-6 useful alternative full commands in completions and examples.command.",
     fix: "Diagnose this terminal error or failed command. Explain the likely cause and provide a fix."
   }[mode];
 
@@ -88,6 +89,7 @@ export function buildPrompt({ mode, text, shell, source = "typed text", outputSt
       "Be concise, practical, and safe.",
       "Never suggest destructive commands unless the user explicitly asks; if a command can delete data, say so clearly.",
       "When completing, preserve the user's intent and avoid inventing private paths or secrets.",
+      "For complete mode, provide multiple practical candidate commands, not only --help. Use placeholders for unknown values.",
       `For examples, use angle-bracket placeholders for variable parts, such as ${placeholders}.`,
       "Do not replace placeholders with fake real values unless the user already provided the value.",
       "Every example must explain the command's purpose in the purpose field.",

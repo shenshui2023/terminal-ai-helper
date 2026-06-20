@@ -7,7 +7,7 @@
 - `Ctrl+Space` 在当前终端光标附近打开智能补全候选框。
 - 候选框会先显示本地快速建议，`git`、`ssh`、`docker`、`npm`、`python`、`java`、`adb` 这类命令不用先等 API。
 - Kubernetes 常用命令也有本地候选，支持 `kube` 和 `kubectl`，例如 `kube get svc` 会直接给出 `-A`、`-n <命名空间>`、`-o wide`、`-o yaml` 等候选。
-- AI 候选会在后台补充进列表；如果中转站临时失败，会保留本地候选并在状态栏显示失败原因。
+- AI 候选会在后台补充进列表；AI 会返回多条候选命令，不要求所有命令都预存在本地。
 - 选中候选后，可以在下方输入框直接修改完整命令，再按 `Enter` 插回当前命令行。
 - `complete` 结果会写入本地缓存，重复补全会更快。
 - 管理面板会尽量贴在当前终端右侧，复用同一个窗口，并提供历史记录、输出格式、提示词规则、剪贴板读取和缓存清理。
@@ -69,6 +69,7 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js doctor
 | `Alt+/` | 解释选中文本或当前命令 |
 | `Alt+?` | 打开管理面板，很多键盘上 `Alt+Shift+/` 会被识别为 `Alt+?` |
 | `Ctrl+Space` | 打开智能补全候选框 |
+| `Ctrl+Shift+Space` | 备用：当 `Ctrl+Space` 被输入法或终端抢占时使用 |
 | `Alt+C` | 复制 AI 补全 |
 | `Alt+F` | 诊断选中文本或当前命令 |
 | `F2` | 备用：解释当前命令 |
@@ -83,7 +84,7 @@ taih-keys
 taih-what-key
 ```
 
-`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、输入法、远端 SSH 会话都可能抢占组合键。
+`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、中文输入法、远端 SSH 会话都可能抢占 `Ctrl+Space`。如果 `Ctrl+Space` 没反应，优先用 `F4` 或 `Ctrl+Shift+Space`。
 
 ## 常用命令
 
@@ -105,6 +106,7 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style bri
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js complete --json -- "ssh"
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache clear
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache stats
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config get
 ```
 
 ## 补全候选框
@@ -126,6 +128,34 @@ ssh
 本地候选立即显示，AI 候选后台补充。重复相同补全时会命中缓存。
 
 如果只看到 `--help` 一类候选，通常表示这条命令还没有本地规则，程序会先给通用兜底候选，同时等待 AI 后台补充。
+
+如果 AI 候选没有追加，常见原因是 API 失败、模型返回格式不合法、或网络超时。状态栏会显示失败原因；本地候选仍然可以先用。
+
+## 模型和配置
+
+打开右侧面板：
+
+```powershell
+taih-panel
+```
+
+点击底部 `配置` 按钮，可以修改：
+
+- 接口地址：`TAIH_BASE_URL`
+- 模型：`TAIH_MODEL`
+- 超时时间：`TAIH_TIMEOUT_MS`
+- 查看缓存统计
+- 清理缓存
+
+也可以用命令修改模型：
+
+```powershell
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set model gpt-5.5
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set base-url https://qyapi.cjyyswq.com
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set timeout 30000
+```
+
+如果已经打开多个 PowerShell，会话内环境变量可能还是旧值。重新加载 profile 或重开终端最稳。
 
 ## 占用和缓存
 

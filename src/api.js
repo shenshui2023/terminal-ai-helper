@@ -178,6 +178,7 @@ function normalizeResult(value) {
     summary: String(value.summary || ""),
     confidence: String(value.confidence || "medium"),
     completion: String(value.completion || ""),
+    completions: list(value.completions),
     usage: list(value.usage),
     examples: examples(value.examples),
     risks: list(value.risks),
