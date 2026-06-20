@@ -43,21 +43,26 @@ function styleInstructions(outputStyle = "standard", extraInstructions = "") {
     brief: [
       "Output must be short: at most 8 lines.",
       "Use this order: purpose, common usage, at most 2 examples, risks if any.",
+      "Separate sections with one blank line.",
+      "Use two-space indentation for bullets and example purposes.",
       "Do not include long tables, exhaustive parameter lists, or background essays."
     ],
     standard: [
       "Output should be practical and not verbose.",
       "Prefer bullets over long paragraphs.",
+      "Separate sections with one blank line and keep indentation readable.",
       "Include examples only when they clarify real usage."
     ],
     examples: [
       "Focus on copyable examples.",
       "Use placeholders for variable parts.",
-      "Explain each example in one short sentence."
+      "Explain each example in one short sentence.",
+      "Put a blank line between examples when the answer is longer than four lines."
     ],
     custom: [
       "Follow the user's custom output rules exactly when they are safe.",
-      "If the answer would violate the custom rules, rewrite it until it matches the rules."
+      "If the answer would violate the custom rules, rewrite it until it matches the rules.",
+      "Keep blank lines and indentation readable unless the custom rules explicitly say otherwise."
     ]
   }[style] || [];
 

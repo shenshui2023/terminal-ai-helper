@@ -71,6 +71,12 @@ function Get-AnchorRect {
     return [pscustomobject]@{ X = $AnchorX; Y = $AnchorY; W = $AnchorW; H = $AnchorH }
 }
 
+function Test-AnchorAlive {
+    Ensure-Win32
+    if ($AnchorHandle -le 0) { return $true }
+    return [TaihPanelWin32]::IsWindow([IntPtr]$AnchorHandle)
+}
+
 function To-ModeValue {
     param([string]$Value)
     if ($Value -match '^explain') { return "explain" }
@@ -157,9 +163,9 @@ function Move-PanelNearTerminal {
     $anchor = Get-AnchorRect
     $width = [Math]::Min(620, [Math]::Max(460, [int]($screen.Width * 0.30)))
     $height = if ($anchor.H -gt 300) { [Math]::Min($anchor.H, $screen.Height) } else { [Math]::Min(820, [int]($screen.Height * 0.82)) }
-    $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W + 8 } else { $screen.Right - $width - 16 }
+    $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W } else { $screen.Right - $width - 16 }
     if (($x + $width) -gt $screen.Right) {
-        $x = if ($anchor.X -ge 0) { $anchor.X - $width - 8 } else { $screen.Right - $width - 16 }
+        $x = if ($anchor.X -ge 0) { $anchor.X - $width } else { $screen.Right - $width - 16 }
     }
     if ($x -lt $screen.Left) { $x = $screen.Left + 8 }
     if (($x + $width) -gt $screen.Right) { $x = $screen.Right - $width - 8 }
@@ -176,6 +182,43 @@ function Append-Output {
     $Box.AppendText($Text)
     $Box.SelectionStart = $Box.TextLength
     $Box.ScrollToCaret()
+}
+
+function Format-PanelOutput {
+    param([string]$Text)
+    if (-not $Text) { return "" }
+
+    $lines = ($Text -replace "`r`n|`r", "`n").Split("`n") | ForEach-Object { $_.TrimEnd() }
+    $result = New-Object System.Collections.Generic.List[string]
+    $blankCount = 0
+    $inCodeBlock = $false
+
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match '^```') { $inCodeBlock = -not $inCodeBlock }
+
+        if (-not $inCodeBlock -and $trimmed -match '^(常规用法|用法|示例|风险提醒|风险|下一步|修复步骤|原因|作用|注意):?$') {
+            if ($result.Count -gt 0 -and $result[$result.Count - 1].Trim()) {
+                $result.Add("")
+            }
+            $line = $trimmed.TrimEnd(":") + ":"
+        } elseif (-not $inCodeBlock -and $trimmed -match '^[-*]\s+') {
+            $line = "  " + $trimmed
+        } elseif (-not $inCodeBlock -and $trimmed -match '^\d+\.\s+') {
+            $line = "  " + $trimmed
+        }
+
+        if (-not $line.Trim()) {
+            $blankCount++
+            if ($blankCount -le 1) { $result.Add("") }
+            continue
+        }
+
+        $blankCount = 0
+        $result.Add($line)
+    }
+
+    return (($result -join "`r`n").Trim() + "`r`n")
 }
 
 function Stop-RunningRequest {
@@ -304,8 +347,11 @@ function Start-PanelRequest {
         try { if (Test-Path -LiteralPath $state.StderrFile) { $errorText = [System.IO.File]::ReadAllText($state.StderrFile, [System.Text.Encoding]::UTF8) } } catch {}
         if ($errorText.Trim()) {
             $state.StatusLabel.Text = L '\u8bf7\u6c42\u5931\u8d25'
-            $state.OutputBox.Text = (L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $errorText
+            $state.OutputBox.Text = Format-PanelOutput ((L '\u8bf7\u6c42\u5931\u8d25\uff1a') + "`r`n" + $errorText)
         } else {
+            $finalText = ""
+            try { if (Test-Path -LiteralPath $state.StdoutFile) { $finalText = [System.IO.File]::ReadAllText($state.StdoutFile, [System.Text.Encoding]::UTF8) } } catch {}
+            if ($finalText.Trim()) { $state.OutputBox.Text = Format-PanelOutput $finalText }
             $state.StatusLabel.Text = (L '\u5b8c\u6210\uff0c\u7528\u65f6 ') + $seconds + (L ' \u79d2')
         }
         Refresh-HistoryList -HistoryBox $state.HistoryBox
@@ -412,7 +458,7 @@ $rulesBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $rulesBox.BackColor = $surface
 $rulesBox.ForeColor = $muted
 $rulesBox.BorderStyle = "FixedSingle"
-$rulesBox.Text = if ($settings.rules) { [string]$settings.rules } else { L '\u9ed8\u8ba4\uff1a\u4e0d\u8d85\u8fc7 8 \u884c\uff1b\u5148\u8bf4\u4f5c\u7528\uff0c\u518d\u7ed9\u793a\u4f8b\uff1b\u6709\u98ce\u9669\u5fc5\u987b\u63d0\u9192\u3002' }
+$rulesBox.Text = if ($settings.rules) { [string]$settings.rules } else { L '\u9ed8\u8ba4\uff1a\u4e0d\u8d85\u8fc7 8 \u884c\uff1b\u6bb5\u843d\u4e4b\u95f4\u7559\u4e00\u4e2a\u7a7a\u884c\uff1b\u5217\u8868\u548c\u793a\u4f8b\u7528\u4e24\u4e2a\u7a7a\u683c\u7f29\u8fdb\uff1b\u5148\u8bf4\u4f5c\u7528\uff0c\u518d\u7ed9\u793a\u4f8b\uff1b\u6709\u98ce\u9669\u5fc5\u987b\u63d0\u9192\u3002' }
 
 $output = New-Object System.Windows.Forms.RichTextBox
 $output.Dock = "Fill"
@@ -493,10 +539,10 @@ $historyBox.Add_SelectedIndexChanged({
         $commandBox.Text = [string]$item.text
         if ($item.mode) { $modeBox.SelectedItem = [string]$item.mode }
         if ($item.output) {
-            $output.Text = [string]$item.output
+            $output.Text = Format-PanelOutput ([string]$item.output)
             $status.Text = L '\u5df2\u6253\u5f00\u5386\u53f2'
         } else {
-            $output.Text = ([string]$item.summary)
+            $output.Text = Format-PanelOutput ([string]$item.summary)
             $status.Text = L '\u5386\u53f2\u547d\u4ee4\u5df2\u586b\u5165'
         }
     }
@@ -514,7 +560,13 @@ Move-PanelNearTerminal -Form $form
 
 $followTimer = New-Object System.Windows.Forms.Timer
 $followTimer.Interval = 300
-$followTimer.Add_Tick({ Move-PanelNearTerminal -Form $form })
+$followTimer.Add_Tick({
+    if (-not (Test-AnchorAlive)) {
+        $form.Close()
+        return
+    }
+    Move-PanelNearTerminal -Form $form
+})
 $followTimer.Start()
 $form.Add_FormClosed({ try { $followTimer.Stop(); $followTimer.Dispose() } catch {} })
 
