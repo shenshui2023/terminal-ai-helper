@@ -47,6 +47,10 @@ $sshCompletions = @(Get-TerminalAiLocalCompletions -Prefix "ssh")
 if (-not ($sshCompletions | Where-Object { $_ -like "ssh *$sshCandidate*" })) {
     throw "missing readable ssh completion candidate"
 }
+$kubeCompletions = @(Get-TerminalAiLocalCompletions -Prefix "kube get svc")
+if ($kubeCompletions.Count -lt 3 -or -not ($kubeCompletions | Where-Object { $_ -like "kube get svc -A" })) {
+    throw "missing local Kubernetes service completion candidates"
+}
 
 Write-Host "test: completion popup can render local candidates without API"
 $env:TAIH_TEST_NO_AI_COMPLETION = "1"

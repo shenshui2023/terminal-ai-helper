@@ -1411,6 +1411,24 @@ function Get-TerminalAiLocalCompletions {
                 ("adb reverse tcp:" + (L '\u003c\u7aef\u53e3\u003e') + " tcp:" + (L '\u003c\u7aef\u53e3\u003e'))
             )
         }
+        { $_ -in @("kube", "kubectl") } {
+            $ns = L '\u003c\u547d\u540d\u7a7a\u95f4\u003e'
+            $name = L '\u003c\u670d\u52a1\u540d\u003e'
+            $pod = L '\u003cPod\u540d\u003e'
+            $container = L '\u003c\u5bb9\u5668\u540d\u003e'
+            $candidates = @(
+                "$command get pods -A",
+                "$command get svc -A",
+                "$command get svc -n $ns",
+                "$command get svc -o wide",
+                "$command get svc -o yaml",
+                "$command describe svc $name -n $ns",
+                "$command get deploy -A",
+                "$command logs -f $pod -n $ns",
+                "$command logs -f $pod -c $container -n $ns",
+                "$command exec -it $pod -n $ns -- sh"
+            )
+        }
     }
 
     $items = New-Object System.Collections.Generic.List[string]
@@ -1423,6 +1441,7 @@ function Get-TerminalAiLocalCompletions {
 
     if ($items.Count -eq 0 -and $text.Length -ge 2) {
         $items.Add("$text --help")
+        $items.Add("$text -h")
         if ($text -notmatch '\s') { $items.Add("Get-Command $text -Syntax") }
     }
 

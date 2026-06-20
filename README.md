@@ -6,6 +6,7 @@
 
 - `Ctrl+Space` 在当前终端光标附近打开智能补全候选框。
 - 候选框会先显示本地快速建议，`git`、`ssh`、`docker`、`npm`、`python`、`java`、`adb` 这类命令不用先等 API。
+- Kubernetes 常用命令也有本地候选，支持 `kube` 和 `kubectl`，例如 `kube get svc` 会直接给出 `-A`、`-n <命名空间>`、`-o wide`、`-o yaml` 等候选。
 - AI 候选会在后台补充进列表；如果中转站临时失败，会保留本地候选并在状态栏显示失败原因。
 - 选中候选后，可以在下方输入框直接修改完整命令，再按 `Enter` 插回当前命令行。
 - `complete` 结果会写入本地缓存，重复补全会更快。
@@ -103,6 +104,7 @@ CLI 示例：
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style brief -- "git status"
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js complete --json -- "ssh"
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache clear
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache stats
 ```
 
 ## 补全候选框
@@ -122,6 +124,37 @@ ssh
 - `复制` 只复制候选，不修改当前命令行。
 
 本地候选立即显示，AI 候选后台补充。重复相同补全时会命中缓存。
+
+如果只看到 `--help` 一类候选，通常表示这条命令还没有本地规则，程序会先给通用兜底候选，同时等待 AI 后台补充。
+
+## 占用和缓存
+
+这个项目不会把大量内容放进内存长期占用。常驻的主要是当前 PowerShell 会话里的快捷键函数，以及你打开的面板窗口。
+
+本地数据保存在：
+
+```powershell
+%USERPROFILE%\.terminal-ai-helper
+```
+
+默认限制：
+
+- 历史记录最多保留最近 300 条。
+- 缓存最多保留 500 个文件。
+- 缓存总大小最多约 50 MB。
+- 缓存默认 7 天过期。
+
+查看占用：
+
+```powershell
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache stats
+```
+
+清理缓存：
+
+```powershell
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache clear
+```
 
 ## 管理面板
 

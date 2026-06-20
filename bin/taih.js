@@ -5,7 +5,7 @@ import { requestCommandHelp, requestCommandHelpTextStream } from "../src/api.js"
 import { buildPlainPrompt, buildPrompt } from "../src/prompts.js";
 import { renderHuman, renderJson, renderRaw } from "../src/render.js";
 import { readClipboard, writeClipboard } from "../src/clipboard.js";
-import { appendHistory, clearCache, getCache, readHistory, setCache } from "../src/store.js";
+import { appendHistory, cacheStats, clearCache, getCache, readHistory, setCache } from "../src/store.js";
 import { getLocalHelp } from "../src/local-help.js";
 
 const args = process.argv.slice(2);
@@ -19,6 +19,7 @@ function usage() {
   taih serve [--port 17888]          启动本地 HTTP helper，供 SSH 反向隧道使用
   taih history [--json]              查看最近的命令帮助历史
   taih cache clear                   清理本地缓存
+  taih cache stats                   查看缓存和历史占用
   taih doctor                        检查本地配置
 
 选项:
@@ -113,7 +114,20 @@ async function main() {
       console.log("缓存已清理。");
       return;
     }
-    console.error("用法: taih cache clear");
+    if (sub === "stats") {
+      const stats = cacheStats();
+      if (asJson) {
+        console.log(JSON.stringify(stats, null, 2));
+      } else {
+        console.log("terminal-ai-helper cache stats");
+        console.log(`  cacheFiles: ${stats.files}/${stats.maxFiles}`);
+        console.log(`  cacheSize:  ${(stats.bytes / 1024 / 1024).toFixed(2)} MB / ${(stats.maxBytes / 1024 / 1024).toFixed(0)} MB`);
+        console.log(`  maxAge:     ${(stats.maxAgeMs / 24 / 60 / 60 / 1000).toFixed(0)} days`);
+        console.log(`  history:    ${stats.historyLines}/${stats.maxHistoryLines} lines`);
+      }
+      return;
+    }
+    console.error("用法: taih cache clear | taih cache stats");
     process.exitCode = 2;
     return;
   }
