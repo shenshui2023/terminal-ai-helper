@@ -122,7 +122,7 @@ taih-panel-reset              # 清理卡住的面板状态
 | 右侧管理面板 | 持续查看解释、历史、配置、规则 | `taih-panel` 或 `Alt+?` |
 | 托盘全局选区 | Windows Terminal、SSH、任意窗口选中文本 | 启动 `powershell\tray.ps1`，选中文本后按 `Ctrl+Alt+/` |
 | VS Code 右键 | 解释代码块、命令片段、日志片段 | 安装扩展后，选中文本右键使用“终端 AI 助手” |
-| SSH 反向隧道 | 远端 shell 内直接调用本机 API | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `remote/taih-bash.sh` |
+| SSH 反向隧道 | 远端 shell 内直接调用本机 API | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `integrations/ssh/taih-bash.sh` |
 
 Windows Terminal 没有稳定的第三方右键菜单扩展接口，所以项目提供的是托盘全局选区快捷键和 actions 配置说明，见：
 
@@ -135,6 +135,7 @@ CLI 示例：
 ```powershell
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style brief -- "git status"
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js complete --json -- "ssh"
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js tools --style brief --tools linux,k8s
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache clear
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js cache stats
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config get
@@ -176,6 +177,7 @@ taih-panel
 - 接口地址：`TAIH_BASE_URL`
 - 模型：`TAIH_MODEL`
 - 超时时间：`TAIH_TIMEOUT_MS`
+- 默认工具集：`TAIH_TOOLS`
 - 查看缓存统计
 - 清理缓存
 
@@ -185,6 +187,7 @@ taih-panel
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set model gpt-5.5
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set base-url https://qyapi.cjyyswq.com
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set timeout 30000
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config set tools linux,k8s,ssh
 ```
 
 如果已经打开多个 PowerShell，会话内环境变量可能还是旧值。重新加载 profile 或重开终端最稳。
@@ -235,6 +238,7 @@ taih-panel
 | `explain（解析命令）` | 解释命令含义、参数、示例和风险 |
 | `fix（诊断报错）` | 分析报错原因并给出修复步骤 |
 | `complete（补全命令）` | 根据当前输入补全命令 |
+| `tools（工具菜单）` | 按工具集生成常用基础命令菜单 |
 
 输出风格：
 
@@ -288,7 +292,7 @@ ssh -R 17888:127.0.0.1:17888 <用户名>@<主机>
 远端加载 bash 集成：
 
 ```bash
-source /path/to/terminal-ai-helper/remote/taih-bash.sh
+source /path/to/terminal-ai-helper/integrations/ssh/taih-bash.sh
 ```
 
 远端也可以手动把文本发回本机面板：
@@ -296,8 +300,12 @@ source /path/to/terminal-ai-helper/remote/taih-bash.sh
 ```bash
 taih explain 'systemctl status <服务名>'
 journalctl -u <服务名> -n 80 --no-pager | taih fix
+taih complete 'kubectl get svc'
 taih-panel explain 'systemctl status <服务名>'
 journalctl -u <服务名> -n 80 --no-pager | taih-panel fix
+taih-tools
+taih-tools linux k8s docker
+taih-panel tools
 ```
 
 ## 测试

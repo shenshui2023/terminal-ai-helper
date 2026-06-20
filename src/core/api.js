@@ -171,15 +171,32 @@ function examples(value) {
     .filter((item) => item?.command);
 }
 
+function relatedCommands(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (typeof item === "string") return { command: item, purpose: "", when: "" };
+      if (!item || typeof item !== "object") return null;
+      return {
+        command: String(item.command || "").trim(),
+        purpose: String(item.purpose || "").trim(),
+        when: String(item.when || "").trim()
+      };
+    })
+    .filter((item) => item?.command);
+}
+
 function normalizeResult(value) {
+  const completions = list(value.completions);
   return {
     title: String(value.title || "\u547d\u4ee4\u52a9\u624b"),
     summary: String(value.summary || ""),
     confidence: String(value.confidence || "medium"),
-    completion: String(value.completion || ""),
-    completions: list(value.completions),
+    completion: String(value.completion || completions[0] || ""),
+    completions,
     usage: list(value.usage),
     examples: examples(value.examples),
+    related_commands: relatedCommands(value.related_commands),
     risks: list(value.risks),
     next_steps: list(value.next_steps)
   };

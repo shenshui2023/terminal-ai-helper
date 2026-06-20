@@ -1,6 +1,7 @@
 param(
     [string]$InputFile = "",
     [string]$Mode = "explain",
+    [string]$Tools = "auto",
     [string]$PanelId = "",
     [long]$AnchorHandle = 0,
     [int]$AnchorX = -1,
@@ -82,6 +83,7 @@ function To-ModeValue {
     if ($Value -match '^explain') { return "explain" }
     if ($Value -match '^fix') { return "fix" }
     if ($Value -match '^complete') { return "complete" }
+    if ($Value -match '^tools') { return "tools" }
     return $Value
 }
 
@@ -121,14 +123,14 @@ function Read-Settings {
             return (Get-Content -LiteralPath $script:TaihSettingsPath -Raw | ConvertFrom-Json)
         }
     } catch {}
-    return [pscustomobject]@{ style = "brief"; rules = "" }
+    return [pscustomobject]@{ style = "brief"; rules = ""; tools = "auto" }
 }
 
 function Save-Settings {
-    param([string]$Style, [string]$Rules)
+    param([string]$Style, [string]$Rules, [string]$Tools)
     $dir = Split-Path -Parent $script:TaihSettingsPath
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    [pscustomobject]@{ style = $Style; rules = $Rules } |
+    [pscustomobject]@{ style = $Style; rules = $Rules; tools = $Tools } |
         ConvertTo-Json |
         Set-Content -LiteralPath $script:TaihSettingsPath -Encoding UTF8
 }
@@ -366,7 +368,7 @@ function Stop-RunningRequest {
 }
 
 function Apply-PanelCommand {
-    param($ModeBox, $CommandBox, $OutputBox, $StatusLabel, $RunButton, $StyleBox, $RulesBox, $HistoryBox)
+    param($ModeBox, $CommandBox, $OutputBox, $StatusLabel, $RunButton, $StyleBox, $ToolsBox, $RulesBox, $HistoryBox)
     try {
         if (-not (Test-Path -LiteralPath $script:TaihCommandFile)) { return }
         $file = Get-Item -LiteralPath $script:TaihCommandFile
@@ -385,12 +387,14 @@ function Apply-PanelCommand {
             $OutputBox.Clear()
         }
         if ($payload.mode) { Select-ComboByPrefix -Combo $ModeBox -Prefix ([string]$payload.mode) }
+        if ($payload.style) { Select-ComboByPrefix -Combo $StyleBox -Prefix ([string]$payload.style) }
+        if ($payload.tools) { $ToolsBox.Text = [string]$payload.tools }
         $CommandBox.Text = $text
         $StatusLabel.Text = L '\u5df2\u63a5\u6536\u65b0\u547d\u4ee4'
         $form.Activate()
         [TaihPanelWin32]::SetForegroundWindow($form.Handle) | Out-Null
         if ($text.Trim()) {
-            Start-PanelRequest -ModeBox $ModeBox -StyleBox $StyleBox -CommandBox $CommandBox -RulesBox $RulesBox -OutputBox $OutputBox -StatusLabel $StatusLabel -RunButton $RunButton -HistoryBox $HistoryBox
+            Start-PanelRequest -ModeBox $ModeBox -StyleBox $StyleBox -ToolsBox $ToolsBox -CommandBox $CommandBox -RulesBox $RulesBox -OutputBox $OutputBox -StatusLabel $StatusLabel -RunButton $RunButton -HistoryBox $HistoryBox
         }
     } catch {
         $StatusLabel.Text = L '\u8bfb\u53d6\u65b0\u547d\u4ee4\u5931\u8d25'
@@ -398,7 +402,7 @@ function Apply-PanelCommand {
 }
 
 function Start-PanelRequest {
-    param($ModeBox, $StyleBox, $CommandBox, $RulesBox, $OutputBox, $StatusLabel, $RunButton, $HistoryBox)
+    param($ModeBox, $StyleBox, $ToolsBox, $CommandBox, $RulesBox, $OutputBox, $StatusLabel, $RunButton, $HistoryBox)
 
     if ($script:TaihProcess -and -not $script:TaihProcess.HasExited) {
         $StatusLabel.Text = L '\u6b63\u5728\u6267\u884c\uff0c\u8bf7\u5148\u7b49\u5f85\u6216\u5173\u95ed\u7a97\u53e3'
@@ -406,25 +410,30 @@ function Start-PanelRequest {
     }
 
     $text = [string]$CommandBox.Text
+    $modeValue = To-ModeValue ([string]$ModeBox.SelectedItem)
+    if (-not $modeValue) { $modeValue = "explain" }
+    if (-not $text.Trim() -and $modeValue -eq "tools") {
+        $text = (L '\u751f\u6210\u5f53\u524d\u5de5\u5177\u96c6\u7684\u5e38\u7528\u547d\u4ee4\u83dc\u5355')
+    }
     if (-not $text.Trim()) {
         $StatusLabel.Text = L '\u8f93\u5165\u4e3a\u7a7a'
         $OutputBox.Text = L '\u8bf7\u8f93\u5165\u547d\u4ee4\uff0c\u6216\u5148\u590d\u5236\u5185\u5bb9\u540e\u70b9\u201c\u8bfb\u526a\u8d34\u677f\u201d\u3002'
         return
     }
 
-    $modeValue = To-ModeValue ([string]$ModeBox.SelectedItem)
-    if (-not $modeValue) { $modeValue = "explain" }
     $styleValue = To-StyleValue ([string]$StyleBox.SelectedItem)
     if (-not $styleValue) { $styleValue = "brief" }
+    $toolsValue = [string]$ToolsBox.Text
+    if (-not $toolsValue.Trim()) { $toolsValue = "auto" }
     $rules = [string]$RulesBox.Text
     $rulesFile = [System.IO.Path]::GetTempFileName()
     [System.IO.File]::WriteAllText($rulesFile, $rules, [System.Text.Encoding]::UTF8)
 
-    Save-Settings -Style $styleValue -Rules $rules
+    Save-Settings -Style $styleValue -Rules $rules -Tools $toolsValue
 
     $stdoutFile = [System.IO.Path]::GetTempFileName()
     $stderrFile = [System.IO.Path]::GetTempFileName()
-    $args = @($script:TaihCli, $modeValue, "--stream", "--style", $styleValue, "--instructions-file", $rulesFile, "--", $text)
+    $args = @($script:TaihCli, $modeValue, "--stream", "--style", $styleValue, "--tools", $toolsValue, "--instructions-file", $rulesFile, "--", $text)
     $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
 
     $OutputBox.Clear()
@@ -549,12 +558,15 @@ $top.Padding = New-Object System.Windows.Forms.Padding(8, 4, 8, 4)
 [void]$top.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 92)))
 [void]$top.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 92)))
 [void]$top.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+[void]$top.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
+[void]$top.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
 
 $modeBox = New-Object System.Windows.Forms.ComboBox
 $modeBox.DropDownStyle = "DropDownList"
 [void]$modeBox.Items.Add((L 'explain \uff08\u89e3\u6790\u547d\u4ee4\uff09'))
 [void]$modeBox.Items.Add((L 'fix \uff08\u8bca\u65ad\u62a5\u9519\uff09'))
 [void]$modeBox.Items.Add((L 'complete \uff08\u8865\u5168\u547d\u4ee4\uff09'))
+[void]$modeBox.Items.Add((L 'tools \uff08\u5de5\u5177\u83dc\u5355\uff09'))
 Select-ComboByPrefix -Combo $modeBox -Prefix $Mode
 if ($modeBox.SelectedIndex -lt 0) { $modeBox.SelectedIndex = 0 }
 $modeBox.Dock = "Fill"
@@ -569,6 +581,17 @@ Select-ComboByPrefix -Combo $styleBox -Prefix ([string]$settings.style)
 if ($styleBox.SelectedIndex -lt 0) { $styleBox.SelectedIndex = 0 }
 $styleBox.Dock = "Fill"
 
+$toolsBox = New-Object System.Windows.Forms.ComboBox
+$toolsBox.DropDownStyle = "DropDown"
+foreach ($item in @("auto", "linux,ssh,systemd", "k8s,kubectl,helm", "docker,compose", "git", "python,pip,venv", "node,npm,pnpm", "java,maven,gradle", "adb,android", "embedded,serial,gcc,make")) {
+    [void]$toolsBox.Items.Add($item)
+}
+$toolsBox.Text = if ($settings.tools) { [string]$settings.tools } elseif ($Tools) { $Tools } else { "auto" }
+$toolsBox.Dock = "Fill"
+$toolsBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+$toolsBox.BackColor = $surface
+$toolsBox.ForeColor = $fg
+
 $commandBox = New-Object System.Windows.Forms.TextBox
 $commandBox.Dock = "Fill"
 $commandBox.Font = New-Object System.Drawing.Font("Consolas", 10)
@@ -581,6 +604,8 @@ $commandBox.Text = Read-InitialText
 [void]$top.Controls.Add($styleBox, 1, 0)
 [void]$top.Controls.Add($commandBox, 2, 0)
 $top.SetColumnSpan($commandBox, 1)
+[void]$top.Controls.Add($toolsBox, 0, 1)
+$top.SetColumnSpan($toolsBox, 3)
 
 $rulesBox = New-Object System.Windows.Forms.TextBox
 $rulesBox.Multiline = $true
@@ -589,7 +614,7 @@ $rulesBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $rulesBox.BackColor = $surface
 $rulesBox.ForeColor = $muted
 $rulesBox.BorderStyle = "None"
-$rulesBox.Text = if ($settings.rules) { [string]$settings.rules } else { L '\u9ed8\u8ba4\uff1a\u4e0d\u8d85\u8fc7 8 \u884c\uff1b\u6bb5\u843d\u4e4b\u95f4\u7559\u4e00\u4e2a\u7a7a\u884c\uff1b\u5217\u8868\u548c\u793a\u4f8b\u7528\u4e24\u4e2a\u7a7a\u683c\u7f29\u8fdb\uff1b\u5148\u8bf4\u4f5c\u7528\uff0c\u518d\u7ed9\u793a\u4f8b\uff1b\u6709\u98ce\u9669\u5fc5\u987b\u63d0\u9192\u3002' }
+$rulesBox.Text = if ($settings.rules) { [string]$settings.rules } else { L '\u9ed8\u8ba4\uff1a\u5148\u8bf4\u4f5c\u7528\uff0c\u518d\u7ed9\u76f8\u5173\u547d\u4ee4\u548c\u793a\u4f8b\uff1b\u6bb5\u843d\u4e4b\u95f4\u7559\u4e00\u4e2a\u7a7a\u884c\uff1b\u5217\u8868\u548c\u793a\u4f8b\u7528\u4e24\u4e2a\u7a7a\u683c\u7f29\u8fdb\uff1b\u6709\u98ce\u9669\u5fc5\u987b\u63d0\u9192\u3002' }
 
 $output = New-Object System.Windows.Forms.RichTextBox
 $output.Dock = "Fill"
@@ -666,8 +691,8 @@ $status.Padding = New-Object System.Windows.Forms.Padding(0, 6, 12, 0)
 [void]$root.Controls.Add($buttons, 0, 4)
 [void]$form.Controls.Add($root)
 
-$run.Add_Click({ Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox })
-$commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox } })
+$run.Add_Click({ Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -ToolsBox $toolsBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox })
+$commandBox.Add_KeyDown({ if ($_.KeyCode -eq "Enter") { $_.SuppressKeyPress = $true; Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -ToolsBox $toolsBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox } })
 $historyBox.Add_SelectedIndexChanged({
     $idx = $historyBox.SelectedIndex
     if ($idx -ge 0 -and $idx -lt $script:TaihHistoryItems.Count) {
@@ -720,12 +745,12 @@ $form.Add_FormClosed({ try { $followTimer.Stop(); $followTimer.Dispose() } catch
 $commandTimer = New-Object System.Windows.Forms.Timer
 $commandTimer.Interval = 300
 $commandTimer.Add_Tick({
-    Apply-PanelCommand -ModeBox $modeBox -CommandBox $commandBox -OutputBox $output -StatusLabel $status -RunButton $run -StyleBox $styleBox -RulesBox $rulesBox -HistoryBox $historyBox
+    Apply-PanelCommand -ModeBox $modeBox -CommandBox $commandBox -OutputBox $output -StatusLabel $status -RunButton $run -StyleBox $styleBox -ToolsBox $toolsBox -RulesBox $rulesBox -HistoryBox $historyBox
 })
 $commandTimer.Start()
 $form.Add_FormClosed({ try { $commandTimer.Stop(); $commandTimer.Dispose() } catch {} })
 
 if ($commandBox.Text.Trim()) {
-    Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox
+    Start-PanelRequest -ModeBox $modeBox -StyleBox $styleBox -ToolsBox $toolsBox -CommandBox $commandBox -RulesBox $rulesBox -OutputBox $output -StatusLabel $status -RunButton $run -HistoryBox $historyBox
 }
 [System.Windows.Forms.Application]::Run($form)

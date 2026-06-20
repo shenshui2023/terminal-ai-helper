@@ -56,7 +56,7 @@ function isProcessAlive(pid) {
   }
 }
 
-function openPanelFromServer({ mode, text, source, shell, session }) {
+function openPanelFromServer({ mode, text, source, shell, session, tools, style }) {
   if (process.platform !== "win32") {
     throw new Error("panel mode is only supported on local Windows.");
   }
@@ -79,6 +79,8 @@ function openPanelFromServer({ mode, text, source, shell, session }) {
     mode,
     source: source || "ssh-remote-panel",
     shell: shell || "ssh remote shell",
+    tools: tools || "auto",
+    style: style || "brief",
     at: new Date().toISOString()
   }), "utf8");
 
@@ -98,6 +100,7 @@ function openPanelFromServer({ mode, text, source, shell, session }) {
     "-File", panelScript,
     "-InputFile", inputFile,
     "-Mode", mode,
+    "-Tools", tools || "auto",
     "-PanelId", panelId,
     "-AnchorX", "-1",
     "-AnchorY", "-1",
@@ -129,22 +132,25 @@ export async function startServer({ config, port }) {
       const mode = body.mode || "explain";
       const text = String(body.text || "").trim();
       const format = body.format || "text";
-      if (!["explain", "complete", "fix"].includes(mode)) {
+      if (!["explain", "complete", "fix", "tools"].includes(mode)) {
         send(res, 400, "text/plain; charset=utf-8", "invalid mode");
         return;
       }
-      if (!text) {
+      if (!text && mode !== "tools") {
         send(res, 400, "text/plain; charset=utf-8", "empty text");
         return;
       }
+      const requestText = text || `生成 ${body.tools || "auto"} 工具集的常用命令菜单。`;
 
       if (req.url === "/panel") {
         const result = openPanelFromServer({
           mode,
-          text,
+          text: requestText,
           source: body.source || "ssh-remote-panel",
           shell: body.shell || "ssh remote shell",
-          session: body.session || body.host || "ssh"
+          session: body.session || body.host || "ssh",
+          tools: body.tools || "auto",
+          style: body.style || "brief"
         });
         send(res, 200, "application/json; charset=utf-8", JSON.stringify({ ok: true, ...result }));
         return;
@@ -152,12 +158,15 @@ export async function startServer({ config, port }) {
 
       const prompt = buildPrompt({
         mode,
-        text,
+        text: requestText,
         source: body.source || "http",
-        shell: body.shell || "ssh remote shell"
+        shell: body.shell || "ssh remote shell",
+        outputStyle: body.style || "standard",
+        extraInstructions: body.extraInstructions || "",
+        tools: body.tools || "auto"
       });
       const result = await requestCommandHelp(config, prompt);
-      const output = format === "json" ? renderJson(result) : format === "raw" ? renderRaw(result) : renderHuman(result);
+      const output = format === "json" ? renderJson(result) : format === "raw" ? renderRaw(result) : renderHuman(result, { style: body.style || "standard" });
       send(res, 200, format === "json" ? "application/json; charset=utf-8" : "text/plain; charset=utf-8", output);
     } catch (error) {
       send(res, 500, "text/plain; charset=utf-8", error.message);

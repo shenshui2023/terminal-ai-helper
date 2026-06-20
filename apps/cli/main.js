@@ -10,13 +10,15 @@ import { appendHistory, cacheStats, clearCache, getCache, readHistory, setCache 
 import { getLocalHelp } from "../../src/knowledge/local-help.js";
 
 const args = process.argv.slice(2);
+const validModes = new Set(["explain", "complete", "fix", "tools"]);
 
 function usage() {
   return `用法:
-  taih explain <命令...>             解释命令用法、风险和示例
+  taih explain <命令...>             解析命令用法、风险、示例和相关命令
   taih complete [--json] <前缀...>   根据当前输入补全命令
   taih fix [--json] <报错...>        诊断报错并给出修复建议
-  taih clipboard [模式]              读取剪贴板并执行 explain/complete/fix
+  taih tools [描述...]               生成常用工具命令菜单
+  taih clipboard [模式]              读取剪贴板并执行 explain/complete/fix/tools
   taih serve [--port 17888]          启动本地 HTTP helper，供 SSH 反向隧道使用
   taih history [--json]              查看最近的命令帮助历史
   taih cache clear                   清理本地缓存
@@ -26,7 +28,6 @@ function usage() {
   taih config set base-url <地址>     写入用户级接口地址
   taih config set timeout <毫秒>      写入用户级超时时间
   taih doctor                        检查本地配置
-
 选项:
   --clipboard                        没有命令文本时读取剪贴板
   --copy                             把渲染后的结果复制到剪贴板
@@ -36,11 +37,13 @@ function usage() {
   --stream                           API 支持 SSE 时流式输出纯文本
   --style <brief|standard|examples|custom>
                                       控制输出格式，面板默认使用 brief
+  --tools <auto|linux,k8s,docker,...>
+                                      指定工具集，用于解析、补全和工具菜单
   --instructions-file <文件>          追加自定义输出规则或提示词
-
 环境变量:
   TAIH_BASE_URL        API 地址，默认 https://qyapi.cjyyswq.com
   TAIH_MODEL           模型名，默认 gpt-5.5
+  TAIH_TOOLS           默认工具集，例如 linux,k8s,ssh
   OPENAI_API_KEY       API key；也会检查 Windows 用户环境变量和 %USERPROFILE%\\.codex\\auth.json
 `;
 }
@@ -83,6 +86,10 @@ function setUserEnv(name, value) {
   process.env[name] = value;
 }
 
+function defaultToolsText(tools) {
+  return `生成 ${tools || "auto"} 工具集的常用命令菜单，包含基础查看、排查、补全示例和风险提醒。`;
+}
+
 async function main() {
   const asJson = takeFlag("--json");
   const asRaw = takeFlag("--raw");
@@ -90,6 +97,7 @@ async function main() {
   const stream = takeFlag("--stream");
   const copyOutput = takeFlag("--copy");
   const outputStyle = takeOption("--style", process.env.TAIH_OUTPUT_STYLE || "standard");
+  const tools = takeOption("--tools", process.env.TAIH_TOOLS || "auto");
   const instructionsFile = takeOption("--instructions-file", "");
   let fromClipboard = takeFlag("--clipboard");
   const port = Number(takeOption("--port", process.env.TAIH_PORT || 17888));
@@ -155,6 +163,7 @@ async function main() {
       console.log(`  baseUrl: ${config.baseUrl}`);
       console.log(`  model: ${config.model}`);
       console.log(`  timeoutMs: ${config.timeoutMs}`);
+      console.log(`  tools: ${process.env.TAIH_TOOLS || "auto"}`);
       console.log(`  authSource: ${config.authSource}`);
       return;
     }
@@ -164,11 +173,12 @@ async function main() {
       const map = {
         model: "TAIH_MODEL",
         "base-url": "TAIH_BASE_URL",
-        timeout: "TAIH_TIMEOUT_MS"
+        timeout: "TAIH_TIMEOUT_MS",
+        tools: "TAIH_TOOLS"
       };
       const envName = map[key];
       if (!envName || !value) {
-        console.error("用法: taih config set model <模型名> | base-url <地址> | timeout <毫秒>");
+        console.error("用法: taih config set model <模型名> | base-url <地址> | timeout <毫秒> | tools <工具集>");
         process.exitCode = 2;
         return;
       }
@@ -186,13 +196,14 @@ async function main() {
     console.log("terminal-ai-helper doctor");
     console.log(`  baseUrl: ${config.baseUrl}`);
     console.log(`  model: ${config.model}`);
+    console.log(`  tools: ${tools}`);
     console.log(`  apiKey: ${config.apiKey ? "found" : "missing"}`);
     console.log(`  authSource: ${config.authSource}`);
     if (!config.apiKey) process.exitCode = 2;
     return;
   }
 
-  if (!["explain", "complete", "fix"].includes(mode)) {
+  if (!validModes.has(mode)) {
     console.error(`Unknown mode: ${mode}\n`);
     console.error(usage());
     process.exitCode = 2;
@@ -206,6 +217,10 @@ async function main() {
     text = readClipboard();
     source = "clipboard";
   }
+  if (!text && mode === "tools") {
+    text = defaultToolsText(tools);
+    source = "tools-menu";
+  }
 
   if (!text) {
     console.error("No command text provided.");
@@ -215,7 +230,7 @@ async function main() {
 
   const shell = process.env.TAIH_SHELL || process.env.ComSpec || "terminal";
   const extraInstructions = instructionsFile ? await readInstructions(instructionsFile) : (process.env.TAIH_EXTRA_INSTRUCTIONS || "");
-  const localHelp = process.env.TAIH_DISABLE_LOCAL_HELP === "1" ? null : getLocalHelp({ mode, text, outputStyle });
+  const localHelp = process.env.TAIH_DISABLE_LOCAL_HELP === "1" ? null : getLocalHelp({ mode, text, outputStyle, tools });
   if (localHelp && !asJson && !asRaw && !noCache) {
     const output = renderHuman(localHelp, { style: outputStyle });
     appendHistory({ mode, text, source, cacheHit: true, title: localHelp.title, summary: localHelp.summary, output });
@@ -224,9 +239,9 @@ async function main() {
     return;
   }
 
+  const cacheText = `${tools}\0${outputStyle}\0${extraInstructions}\0${text}`;
   if ((stream || String(outputStyle).toLowerCase() === "custom") && !asJson && !asRaw) {
     const cacheMode = `stream:${mode}:${outputStyle}`;
-    const cacheText = `${text}\0${extraInstructions}`;
     const cached = noCache ? null : getCache(cacheMode, cacheText);
     if (cached?.text) {
       process.stdout.write(cached.text);
@@ -234,7 +249,7 @@ async function main() {
       appendHistory({ mode, text, source, cacheHit: true, title: "stream-cache", summary: "cached stream output", output: cached.text });
       return;
     }
-    const prompt = buildPlainPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
+    const prompt = buildPlainPrompt({ mode, text, source, shell, outputStyle, extraInstructions, tools });
     const started = Date.now();
     const full = await requestCommandHelpTextStream(config, prompt, (chunk) => process.stdout.write(chunk));
     if (!full.endsWith("\n")) process.stdout.write("\n");
@@ -243,12 +258,12 @@ async function main() {
     return;
   }
 
-  const prompt = buildPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
-  let result = noCache ? null : getCache(mode, text);
+  const prompt = buildPrompt({ mode, text, source, shell, outputStyle, extraInstructions, tools });
+  let result = noCache ? null : getCache(mode, cacheText);
   const cacheHit = Boolean(result);
   if (!result) {
     result = await requestCommandHelp(config, prompt);
-    setCache(mode, text, result);
+    setCache(mode, cacheText, result);
   }
   appendHistory({ mode, text, source, cacheHit, title: result.title, summary: result.summary });
 

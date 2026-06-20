@@ -76,8 +76,24 @@ if ($apiSource -notmatch "completions") {
 if ($promptSource -notmatch "complete" -or $promptSource -notmatch "--help") {
     throw "prompt does not ask for multiple AI completion candidates"
 }
+if ($promptSource -notmatch "related_commands" -or $promptSource -notmatch "tools") {
+    throw "prompt must include related commands and tools mode support"
+}
 if ($apiSource -notmatch 'input: `\$\{prompt\.system\}\\n\\n\$\{prompt\.user\}`') {
     throw "structured JSON request must use single string input for qyapi compatibility"
+}
+if ($apiSource -notmatch "related_commands") {
+    throw "API normalization must include related_commands"
+}
+$cliPath = Join-Path $root "apps\cli\main.js"
+$serverPath = Join-Path $root "src\server\http-server.js"
+$cliSource = Get-Content -LiteralPath $cliPath -Raw
+$serverSource = Get-Content -LiteralPath $serverPath -Raw
+if ($cliSource -notmatch '"tools"' -or $cliSource -notmatch "--tools") {
+    throw "CLI must support tools mode and --tools"
+}
+if ($serverSource -notmatch '"tools"' -or $serverSource -notmatch "body.tools") {
+    throw "HTTP server must accept tools mode from SSH bridge"
 }
 $trayPath = Join-Path $root "apps\powershell\tray.ps1"
 $parseErrors = $null
