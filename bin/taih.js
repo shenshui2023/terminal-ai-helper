@@ -184,7 +184,7 @@ async function main() {
   const cacheHit = Boolean(result);
   if (!result) {
     result = await requestCommandHelp(config, prompt);
-    if (mode !== "complete") setCache(mode, text, result);
+    setCache(mode, text, result);
   }
   appendHistory({ mode, text, source, cacheHit, title: result.title, summary: result.summary });
 

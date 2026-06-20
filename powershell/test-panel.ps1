@@ -37,6 +37,12 @@ foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip"
     }
 }
 
+Write-Host "test: local completion candidates are available"
+$localCompletions = @(Get-TerminalAiLocalCompletions -Prefix "git st")
+if (-not ($localCompletions | Where-Object { $_ -like "git status*" })) {
+    throw "missing local git status completion"
+}
+
 Write-Host "test: panel launcher is non-blocking"
 $env:TAIH_TEST_NO_PANEL_START = "1"
 try {

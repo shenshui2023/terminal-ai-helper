@@ -68,7 +68,7 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 | --- | --- | --- |
 | `Alt+/` | 无 | 解释当前命令行里选中的文本；没有选中时解释当前命令 |
 | `Alt+?` | `Alt+Shift+/` | 打开管理面板 |
-| `Ctrl+Space` | 无 | 生成 AI 补全并插入到光标处 |
+| `Ctrl+Space` | 无 | 在光标下方打开智能补全候选框，选择或编辑后插入 |
 | `Alt+C` | `Alt+Shift+C` | 复制 AI 补全到剪贴板 |
 | `Alt+F` | `Alt+Shift+F` | 诊断当前命令或报错 |
 
@@ -121,7 +121,9 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style bri
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js explain --style custom --instructions-file .\my-rules.txt -- "ssh <用户名>@<主机>"
 ```
 
-面板左侧会显示最近历史，点击历史项会回填命令；如果历史里保存了输出，也会直接显示。同一个终端再次使用 `Alt+?`、`Alt+Shift+/` 或 `taih-panel` 时，默认更新这块面板，不再反复弹出新窗口。
+面板左侧窄栏是历史记录，点击历史项会回填命令；如果历史里保存了输出，也会直接显示。历史区默认较窄，优先把空间留给输出区。同一个终端再次使用 `Alt+?`、`Alt+Shift+/` 或 `taih-panel` 时，默认更新这块面板，不再反复弹出新窗口。
+
+`Ctrl+Space` 会在当前终端光标附近打开智能补全候选框。候选框会先显示本地快速建议，同时后台请求 AI 候选；你可以选择候选，也可以在下方输入框直接修改完整命令，然后按 Enter 插回当前命令行。
 
 缓存分两层：
 
