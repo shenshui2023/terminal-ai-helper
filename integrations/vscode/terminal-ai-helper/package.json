@@ -1,7 +1,7 @@
 {
   "name": "terminal-ai-helper",
   "displayName": "终端 AI 助手",
-  "description": "用 terminal-ai-helper 解释选中的终端命令和报错。",
+  "description": "解释、诊断和补全终端命令；支持选中文本、剪贴板和本地面板。",
   "version": "0.1.0",
   "publisher": "local",
   "engines": {
@@ -13,7 +13,11 @@
   "activationEvents": [
     "onCommand:terminalAiHelper.explainSelection",
     "onCommand:terminalAiHelper.fixSelection",
-    "onCommand:terminalAiHelper.explainClipboard"
+    "onCommand:terminalAiHelper.explainClipboard",
+    "onCommand:terminalAiHelper.fixClipboard",
+    "onCommand:terminalAiHelper.openPanelSelection",
+    "onCommand:terminalAiHelper.openPanelClipboard",
+    "onCommand:terminalAiHelper.openSettings"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -23,7 +27,22 @@
         "terminalAiHelper.cliPath": {
           "type": "string",
           "default": "E:\\\\3.13-aliyun-codex\\\\5.2\\\\terminal-ai-helper\\\\bin\\\\taih.js",
-          "description": "taih.js 的路径"
+          "description": "taih.js 的完整路径。"
+        },
+        "terminalAiHelper.defaultStyle": {
+          "type": "string",
+          "enum": [
+            "brief",
+            "standard",
+            "examples"
+          ],
+          "default": "brief",
+          "description": "VS Code 输出窗口默认使用的回答风格。"
+        },
+        "terminalAiHelper.usePanelByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "右键解释/诊断时是否默认打开项目自带面板，而不是 VS Code 输出窗口。"
         }
       }
     },
@@ -39,6 +58,22 @@
       {
         "command": "terminalAiHelper.explainClipboard",
         "title": "终端 AI 助手：解释剪贴板"
+      },
+      {
+        "command": "terminalAiHelper.fixClipboard",
+        "title": "终端 AI 助手：诊断剪贴板"
+      },
+      {
+        "command": "terminalAiHelper.openPanelSelection",
+        "title": "终端 AI 助手：用侧栏面板解释选中文本"
+      },
+      {
+        "command": "terminalAiHelper.openPanelClipboard",
+        "title": "终端 AI 助手：用侧栏面板解释剪贴板"
+      },
+      {
+        "command": "terminalAiHelper.openSettings",
+        "title": "终端 AI 助手：打开配置"
       }
     ],
     "menus": {
@@ -51,6 +86,11 @@
         {
           "command": "terminalAiHelper.fixSelection",
           "group": "navigation@91",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "terminalAiHelper.openPanelSelection",
+          "group": "navigation@92",
           "when": "editorHasSelection"
         }
       ]

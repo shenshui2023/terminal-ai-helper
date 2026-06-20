@@ -26,6 +26,19 @@ cd E:\3.13-aliyun-codex\5.2\terminal-ai-helper
 node .\bin\taih.js doctor
 ```
 
+推荐一键安装全部本地入口：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\install-all.ps1
+```
+
+它会依次安装/检查：
+
+- PowerShell 快捷键 profile
+- 托盘常驻程序启动项
+- VS Code 右键扩展
+- 本地脚本语法和面板 smoke test
+
 在当前 PowerShell 会话中加载快捷键：
 
 ```powershell
@@ -97,6 +110,22 @@ taih-complete-stable          # 不弹窗，直接请求 AI 并插入补全
 taih-clip                     # 解释剪贴板内容
 taih-clip -Mode fix -Window   # 在面板里诊断剪贴板里的报错
 taih-panel-reset              # 清理卡住的面板状态
+```
+
+## 桌面入口
+
+| 入口 | 适合场景 | 使用方式 |
+| --- | --- | --- |
+| PowerShell 快捷键 | 本地命令行补全、解释、诊断 | 加载 `powershell\taih-profile.ps1` 后使用 `Alt+/`、`F4`、`Ctrl+Space` |
+| 右侧管理面板 | 持续查看解释、历史、配置、规则 | `taih-panel` 或 `Alt+?` |
+| 托盘全局选区 | Windows Terminal、SSH、任意窗口选中文本 | 启动 `powershell\tray.ps1`，选中文本后按 `Ctrl+Alt+/` |
+| VS Code 右键 | 解释代码块、命令片段、日志片段 | 安装扩展后，选中文本右键使用“终端 AI 助手” |
+| SSH 反向隧道 | 远端 shell 内直接调用本机 API | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `remote/taih-bash.sh` |
+
+Windows Terminal 没有稳定的第三方右键菜单扩展接口，所以项目提供的是托盘全局选区快捷键和 actions 配置说明，见：
+
+```powershell
+E:\3.13-aliyun-codex\5.2\terminal-ai-helper\integrations\windows-terminal\README.md
 ```
 
 CLI 示例：

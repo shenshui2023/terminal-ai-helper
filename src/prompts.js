@@ -27,9 +27,9 @@ const schemaInstruction = `只返回紧凑 JSON，不要输出 Markdown，不要
   "title": "简短中文标题",
   "summary": "一句话说明",
   "confidence": "high|medium|low",
-  "completion": "最佳补全文本；如果不适合追加则留空",
+  "completion": "最佳补全文本；如果不适合补全则留空",
   "completions": ["3 到 6 条可直接使用或继续编辑的完整命令"],
-  "usage": ["清楚的常规用法"],
+  "usage": ["清晰的常规用法"],
   "examples": [
     {
       "command": "可复制命令，变量必须使用 ${placeholders} 这类占位符",
@@ -54,7 +54,7 @@ function styleInstructions(outputStyle = "standard", extraInstructions = "") {
       "输出要实用，不要啰嗦。",
       "优先使用短列表，不写长段落。",
       "段落之间保留一个空行，缩进要方便阅读。",
-      "只有示例能澄清真实用法时才给示例。"
+      "只有示例能明显澄清用法时才给示例。"
     ],
     examples: [
       "重点给可复制示例。",
@@ -77,33 +77,47 @@ function styleInstructions(outputStyle = "standard", extraInstructions = "") {
   return rules;
 }
 
-export function buildPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
-  const task = {
-    explain: "解释这条终端命令。说明作用、常用参数、示例和风险。",
-    complete: "补全当前终端命令前缀。给出安全、常规、实用的候选命令。",
-    fix: "诊断这条命令或报错的原因，并给出修复步骤。"
-  }[mode];
-
+function taskFor(mode, structured) {
+  if (structured) {
+    return {
+      explain: "解释这条终端命令。说明作用、常用参数、示例和风险。",
+      complete: "补全当前终端命令前缀。给出安全、常规、实用的候选命令。",
+      fix: "诊断这条命令或报错的原因，并给出修复步骤。"
+    }[mode];
+  }
   return {
-    system: [
-      "你是资深终端命令助手，熟悉 Windows PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、Kubernetes、Android/ADB 和嵌入式开发。",
-      "必须用简体中文回答。",
-      "回答要简洁、实用、安全。",
-      "不要建议破坏性命令，除非用户明确要求；如果命令可能删除数据、覆盖文件或停止服务，必须明确提醒。",
-      "补全命令时保留用户意图，不要编造私有路径、真实密钥、真实账号或真实主机。",
-      "complete 模式必须给出多条实际候选命令，不要只给 --help。",
-      `示例里的可变内容必须使用尖括号占位符，例如 ${placeholders}。`,
-      "不要用假真实值替代占位符，除非用户输入里已经提供了该值。",
-      "每个示例都必须在 purpose 字段说明作用。",
-      "如果输入来自选中文本，把选中文本作为当前上下文解释。",
-      ...styleInstructions(outputStyle, extraInstructions),
-      schemaInstruction
-    ].join("\n"),
+    explain: "解释这条终端命令的作用、常规用法、参数、示例和风险。",
+    complete: "补全当前终端命令。先给出建议补全文本，再简短说明原因。",
+    fix: "诊断这条命令或报错的原因，并给出明确修复步骤。"
+  }[mode];
+}
+
+function baseSystem(outputStyle, extraInstructions, structured) {
+  const lines = [
+    "你是资深终端命令助手，熟悉 Windows PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、Kubernetes、Android/ADB 和嵌入式开发。",
+    "必须用简体中文回答。",
+    "回答要简洁、实用、安全。",
+    "不要建议破坏性命令，除非用户明确要求；如果命令可能删除数据、覆盖文件或停止服务，必须明确提醒。",
+    "补全命令时保留用户意图，不要编造私有路径、真实密钥、真实账号或真实主机。",
+    "complete 模式必须给出多条实际候选命令，不要只给 --help。",
+    `示例里的可变内容必须使用尖括号占位符，例如 ${placeholders}。`,
+    "不要用假真实值替代占位符，除非用户输入里已经提供了该值。",
+    "每个示例都必须说明作用。",
+    "如果输入来自选中文本，把选中文本作为当前上下文解释。",
+    ...styleInstructions(outputStyle, extraInstructions)
+  ];
+  if (structured) lines.push(schemaInstruction);
+  return lines.join("\n");
+}
+
+export function buildPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
+  return {
+    system: baseSystem(outputStyle, extraInstructions, true),
     user: [
       `模式: ${mode}`,
       `Shell/上下文: ${shell}`,
       `输入来源: ${source}`,
-      `任务: ${task}`,
+      `任务: ${taskFor(mode, true)}`,
       "输入:",
       text
     ].join("\n")
@@ -111,27 +125,13 @@ export function buildPrompt({ mode, text, shell, source = "typed text", outputSt
 }
 
 export function buildPlainPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
-  const task = {
-    explain: "解释这条终端命令的作用、常规用法、参数、示例和风险。",
-    complete: "补全当前终端命令。先给出建议补全文本，再简短说明原因。",
-    fix: "诊断这条命令或报错的原因，并给出明确修复步骤。"
-  }[mode];
-
   return {
-    system: [
-      "你是资深终端命令助手，熟悉 PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、Kubernetes、ADB 和嵌入式开发。",
-      "用简体中文回答。",
-      "输出要清晰、可扫描、实用。",
-      `示例中的可变内容必须使用尖括号占位符，例如 ${placeholders}。`,
-      "每条示例都要说明作用。",
-      "如果命令有删除、覆盖、停止服务等风险，必须明确提醒。",
-      ...styleInstructions(outputStyle, extraInstructions)
-    ].join("\n"),
+    system: baseSystem(outputStyle, extraInstructions, false),
     user: [
       `模式: ${mode}`,
       `Shell/上下文: ${shell}`,
       `输入来源: ${source}`,
-      `任务: ${task}`,
+      `任务: ${taskFor(mode, false)}`,
       "输入:",
       text
     ].join("\n")

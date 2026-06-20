@@ -74,7 +74,7 @@ function readInstructions(filePath) {
 
 function setUserEnv(name, value) {
   if (process.platform !== "win32") {
-    throw new Error("config set currently supports Windows user environment variables only.");
+    throw new Error("config set 目前只支持写入 Windows 用户环境变量。");
   }
   execFileSync("reg.exe", ["add", "HKCU\\Environment", "/v", name, "/t", "REG_SZ", "/d", value, "/f"], {
     stdio: ["ignore", "ignore", "pipe"],
@@ -174,7 +174,7 @@ async function main() {
       }
       setUserEnv(envName, value);
       console.log(`已写入用户环境变量 ${envName}=${value}`);
-      console.log("当前终端如已打开很久，建议重新加载 profile 或重开终端。");
+      console.log("当前终端如果已经打开很久，建议重新加载 profile 或重开终端。");
       return;
     }
     console.error("用法: taih config get | taih config set model <模型名>");
@@ -236,8 +236,7 @@ async function main() {
     }
     const prompt = buildPlainPrompt({ mode, text, source, shell, outputStyle, extraInstructions });
     const started = Date.now();
-    let full = "";
-    full = await requestCommandHelpTextStream(config, prompt, (chunk) => process.stdout.write(chunk));
+    const full = await requestCommandHelpTextStream(config, prompt, (chunk) => process.stdout.write(chunk));
     if (!full.endsWith("\n")) process.stdout.write("\n");
     if (!noCache && full.trim()) setCache(cacheMode, cacheText, { text: full });
     appendHistory({ mode, text, source, cacheHit: false, title: "stream", summary: `streamed in ${((Date.now() - started) / 1000).toFixed(1)}s`, output: full });
