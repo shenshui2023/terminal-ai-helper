@@ -30,6 +30,9 @@ if ($content -notlike "*$HelperProfile*") {
         Write-Host "Run this command manually in your normal PowerShell session:" -ForegroundColor Yellow
         Write-Host "  Add-Content -Path `"$profilePath`" -Value '# terminal-ai-helper'"
         Write-Host "  Add-Content -Path `"$profilePath`" -Value '$line'"
+        Write-Host ""
+        Write-Host "Or use the no-profile launcher in this project:" -ForegroundColor Yellow
+        Write-Host "  $((Split-Path -Parent (Split-Path -Parent $PSCommandPath)))\terminal-ai-helper.cmd"
         exit 1
     }
 }

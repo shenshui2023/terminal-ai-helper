@@ -48,17 +48,25 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js complete --raw "git
 
 ## PowerShell 桌面用法
 
-在当前 PowerShell 会话中加载：
+最稳的免安装方式：直接运行项目根目录里的启动器，它会打开一个已经加载快捷键的 PowerShell，不需要改 `$PROFILE`：
+
+```powershell
+E:\3.13-aliyun-codex\5.2\terminal-ai-helper\terminal-ai-helper.cmd
+```
+
+在当前 PowerShell 会话中临时加载：
 
 ```powershell
 . E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\taih-profile.ps1
 ```
 
-安装到 PowerShell 个人配置：
+如果想让每个新 PowerShell 自动加载，再安装到 PowerShell 个人配置：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\install-profile.ps1
 ```
+
+说明：快捷键本质上是 `PSReadLine` 当前进程里的绑定。外部项目无法凭空接管一个已经打开且没有加载脚本的 PowerShell，所以必须满足以下任一条件：使用 `terminal-ai-helper.cmd` 启动、临时点加载 `. taih-profile.ps1`、或安装到 `$PROFILE` 自动加载。
 
 ### 快捷键
 
