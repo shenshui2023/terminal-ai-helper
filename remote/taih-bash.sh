@@ -3,11 +3,13 @@
 #   ssh -R 17888:127.0.0.1:17888 <user>@<host>
 
 export TAIH_REMOTE_URL="${TAIH_REMOTE_URL:-http://127.0.0.1:17888/api}"
+export TAIH_REMOTE_PANEL_URL="${TAIH_REMOTE_PANEL_URL:-http://127.0.0.1:17888/panel}"
 
 _taih_post() {
-  TAIH_MODE="$1" TAIH_FORMAT="${2:-text}" TAIH_TEXT="$3" python3 - <<'PY'
+  TAIH_MODE="$1" TAIH_FORMAT="${2:-text}" TAIH_TEXT="$3" TAIH_ENDPOINT="${4:-$TAIH_REMOTE_URL}" python3 - <<'PY'
 import json
 import os
+import socket
 import sys
 import urllib.request
 
@@ -16,11 +18,13 @@ payload = json.dumps({
     "format": os.environ.get("TAIH_FORMAT", "text"),
     "text": os.environ.get("TAIH_TEXT", ""),
     "source": "ssh-readline",
-    "shell": os.environ.get("SHELL", "remote shell")
+    "shell": os.environ.get("SHELL", "remote shell"),
+    "host": socket.gethostname(),
+    "session": "%s:%s" % (socket.gethostname(), os.environ.get("USER", "remote"))
 }).encode("utf-8")
 
 req = urllib.request.Request(
-    os.environ.get("TAIH_REMOTE_URL", "http://127.0.0.1:17888/api"),
+    os.environ.get("TAIH_ENDPOINT") or os.environ.get("TAIH_REMOTE_URL", "http://127.0.0.1:17888/api"),
     data=payload,
     headers={"content-type": "application/json"},
     method="POST"
@@ -34,15 +38,33 @@ except Exception as exc:
 PY
 }
 
-taih() {
-  local mode="${1:-explain}"
-  shift || true
+_taih_collect_text() {
   local text="$*"
+  if [ -z "$text" ] && [ ! -t 0 ]; then
+    text="$(cat)"
+  fi
   if [ -z "$text" ]; then
     text="${READLINE_LINE:-}"
   fi
+  printf '%s' "$text"
+}
+
+taih() {
+  local mode="${1:-explain}"
+  shift || true
+  local text
+  text="$(_taih_collect_text "$@")"
   _taih_post "$mode" text "$text"
   printf '\n'
+}
+
+taih-panel() {
+  local mode="${1:-explain}"
+  shift || true
+  local text
+  text="$(_taih_collect_text "$@")"
+  _taih_post "$mode" json "$text" "$TAIH_REMOTE_PANEL_URL" >/dev/null
+  printf 'terminal-ai-helper: opened local panel for remote %s\n' "$mode"
 }
 
 _taih_readline_explain() {
@@ -57,6 +79,12 @@ _taih_readline_fix() {
   printf '\n'
 }
 
+_taih_readline_panel() {
+  printf '\n'
+  _taih_post explain json "$READLINE_LINE" "$TAIH_REMOTE_PANEL_URL" >/dev/null
+  printf 'terminal-ai-helper: opened local panel\n'
+}
+
 _taih_readline_complete() {
   local completion
   completion="$(_taih_post complete raw "$READLINE_LINE")"
@@ -67,7 +95,8 @@ _taih_readline_complete() {
 }
 
 bind -x '"\e/":_taih_readline_explain'
+bind -x '"\e?":_taih_readline_panel'
 bind -x '"\e[1;3F":_taih_readline_fix'
 bind -x '"\C- ":_taih_readline_complete'
 
-echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+F fix, Ctrl+Space complete"
+echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+? local panel, Alt+F fix, Ctrl+Space complete"

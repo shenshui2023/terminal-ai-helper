@@ -175,6 +175,7 @@ source /path/to/terminal-ai-helper/remote/taih-bash.sh
 | 快捷键 | 功能 |
 | --- | --- |
 | `Alt+/` | 解释远端当前命令 |
+| `Alt+?` | 把远端当前命令发送到本机管理面板 |
 | `Ctrl+Space` | 补全远端当前命令 |
 | `Alt+F` | 诊断远端当前命令 |
 
@@ -183,7 +184,12 @@ source /path/to/terminal-ai-helper/remote/taih-bash.sh
 ```bash
 taih explain 'systemctl status <服务名>'
 taih fix 'Permission denied (publickey)'
+journalctl -u <服务名> -n 80 --no-pager | taih fix
+taih-panel explain 'systemctl status <服务名>'
+journalctl -u <服务名> -n 80 --no-pager | taih-panel fix
 ```
+
+说明：远端 shell 不能直接读取你在 Windows Terminal 里用鼠标选中的文本，因为选区属于本机终端 UI，不属于服务器 bash/readline。推荐做法是用管道或 `taih-panel` 把文本发回本机，本机保留 API key 并负责展示面板。
 
 如果不想在服务器上安装任何内容，可以把远端终端输出复制到本机，然后在本机 PowerShell 中运行：
 
