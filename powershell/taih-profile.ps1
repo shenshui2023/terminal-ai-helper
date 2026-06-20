@@ -1817,21 +1817,18 @@ function Show-TerminalAiCompletionPopup {
                 $err = ""
                 try { $raw = $process.StandardOutput.ReadToEnd().Trim() } catch {}
                 try { $err = $process.StandardError.ReadToEnd().Trim() } catch {}
-                if ($process.ExitCode -ne 0) {
-                    if ($err.Length -gt 100) { $err = $err.Substring(0, 100) + "..." }
-                    $status.Text = if ($err) { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + $err } else { L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009' }
-                    return
-                }
-                $result = $raw | ConvertFrom-Json
                 $before = $list.Items.Count
                 $candidates = New-Object System.Collections.Generic.List[string]
-                if ($result.completion) { [void]$candidates.Add([string]$result.completion) }
-                if ($result.completions) {
-                    foreach ($item in @($result.completions)) { [void]$candidates.Add([string]$item) }
-                }
-                if ($result.examples) {
-                    foreach ($item in @($result.examples)) {
-                        if ($item.command) { [void]$candidates.Add([string]$item.command) }
+                if ($raw.Trim()) {
+                    $result = $raw | ConvertFrom-Json
+                    if ($result.completion) { [void]$candidates.Add([string]$result.completion) }
+                    if ($result.completions) {
+                        foreach ($item in @($result.completions)) { [void]$candidates.Add([string]$item) }
+                    }
+                    if ($result.examples) {
+                        foreach ($item in @($result.examples)) {
+                            if ($item.command) { [void]$candidates.Add([string]$item.command) }
+                        }
                     }
                 }
                 foreach ($candidate in $candidates) {
@@ -1839,7 +1836,17 @@ function Show-TerminalAiCompletionPopup {
                     Add-TerminalAiCompletionItem -ListBox $list -Value $full
                 }
                 $added = $list.Items.Count - $before
-                $status.Text = if ($added -gt 0) { (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added } else { L 'AI \u6ca1\u6709\u8fd4\u56de\u65b0\u5019\u9009' }
+                if ($added -gt 0) {
+                    $status.Text = (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added
+                    return
+                }
+                if ($process.ExitCode -ne 0) {
+                    if ($err.Length -gt 140) { $err = $err.Substring(0, 140) + "..." }
+                    $codeText = "exit=$($process.ExitCode)"
+                    $status.Text = if ($err) { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + "$codeText $err" } else { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + $codeText }
+                    return
+                }
+                $status.Text = L 'AI \u6ca1\u6709\u8fd4\u56de\u65b0\u5019\u9009'
             } catch {
                 $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
             } finally {
