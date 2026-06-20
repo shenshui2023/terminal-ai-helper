@@ -91,8 +91,16 @@ if ($profileSource -notmatch '\$explain = New-CompletionButton' -or $profileSour
 if ($profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain[\s\S]{0,160}\$form\.Close\(\)') {
     throw "completion popup explain action must close the modal popup"
 }
+if ($profileSource -notmatch '\$form\.FormBorderStyle = "None"' -or $profileSource -notmatch '\$form\.Add_Deactivate') {
+    throw "completion popup must be borderless and close when focus leaves"
+}
 if ($profileSource -notmatch 'if \(\$added -gt 0\)' -or $profileSource -notmatch 'exit=\$\(\$process\.ExitCode\)') {
     throw "completion popup should prefer parsed AI candidates before reporting process errors"
+}
+
+$panelSource = Get-Content -LiteralPath $panelPath -Raw
+if ($panelSource -notmatch '\$form\.FormBorderStyle = "None"') {
+    throw "manager panel should use a borderless terminal-like shell"
 }
 
 Write-Host "test: panel launcher is non-blocking"

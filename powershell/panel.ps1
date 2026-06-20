@@ -508,6 +508,8 @@ $accent = [System.Drawing.Color]::FromArgb(0, 122, 204)
 $form = New-Object System.Windows.Forms.Form
 $form.Text = L '\u7ec8\u7aef AI \u4fa7\u680f'
 $form.StartPosition = "Manual"
+$form.FormBorderStyle = "None"
+$form.ShowInTaskbar = $false
 $form.BackColor = $bg
 $form.ForeColor = $fg
 $form.MinimumSize = New-Object System.Drawing.Size(420, 520)
@@ -522,16 +524,16 @@ $root = New-Object System.Windows.Forms.TableLayoutPanel
 $root.Dock = "Fill"
 $root.RowCount = 5
 $root.ColumnCount = 1
-[void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 42)))
+[void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
 [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 72)))
 [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 86)))
 [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
 [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 42)))
 
 $title = New-Object System.Windows.Forms.Label
-$title.Text = L '\u7ec8\u7aef AI \u4fa7\u680f  \u00b7 \u5f53\u524d\u7ec8\u7aef\u53ef\u7ee7\u7eed\u4f7f\u7528'
+$title.Text = L '\u7ec8\u7aef AI \u4fa7\u680f  \u00b7  Esc \u6216\u53f3\u4e0b\u89d2\u5173\u95ed'
 $title.Dock = "Fill"
-$title.Padding = New-Object System.Windows.Forms.Padding(10, 10, 10, 0)
+$title.Padding = New-Object System.Windows.Forms.Padding(10, 7, 10, 0)
 $title.Font = New-Object System.Drawing.Font("Consolas", 10, [System.Drawing.FontStyle]::Bold)
 $title.ForeColor = $fg
 
@@ -568,7 +570,7 @@ $commandBox.Dock = "Fill"
 $commandBox.Font = New-Object System.Drawing.Font("Consolas", 10)
 $commandBox.BackColor = $surface
 $commandBox.ForeColor = $fg
-$commandBox.BorderStyle = "FixedSingle"
+$commandBox.BorderStyle = "None"
 $commandBox.Text = Read-InitialText
 
 [void]$top.Controls.Add($modeBox, 0, 0)
@@ -582,7 +584,7 @@ $rulesBox.Dock = "Fill"
 $rulesBox.Font = New-Object System.Drawing.Font("Consolas", 9)
 $rulesBox.BackColor = $surface
 $rulesBox.ForeColor = $muted
-$rulesBox.BorderStyle = "FixedSingle"
+$rulesBox.BorderStyle = "None"
 $rulesBox.Text = if ($settings.rules) { [string]$settings.rules } else { L '\u9ed8\u8ba4\uff1a\u4e0d\u8d85\u8fc7 8 \u884c\uff1b\u6bb5\u843d\u4e4b\u95f4\u7559\u4e00\u4e2a\u7a7a\u884c\uff1b\u5217\u8868\u548c\u793a\u4f8b\u7528\u4e24\u4e2a\u7a7a\u683c\u7f29\u8fdb\uff1b\u5148\u8bf4\u4f5c\u7528\uff0c\u518d\u7ed9\u793a\u4f8b\uff1b\u6709\u98ce\u9669\u5fc5\u987b\u63d0\u9192\u3002' }
 
 $output = New-Object System.Windows.Forms.RichTextBox
@@ -590,7 +592,7 @@ $output.Dock = "Fill"
 $output.ReadOnly = $true
 $output.BackColor = [System.Drawing.Color]::Black
 $output.ForeColor = [System.Drawing.Color]::FromArgb(210, 210, 210)
-$output.BorderStyle = "FixedSingle"
+$output.BorderStyle = "None"
 $output.Font = New-Object System.Drawing.Font("Consolas", 10)
 $output.WordWrap = $true
 $output.ScrollBars = "Vertical"
@@ -606,7 +608,7 @@ $historyBox = New-Object System.Windows.Forms.ListBox
 $historyBox.Dock = "Fill"
 $historyBox.BackColor = $surface
 $historyBox.ForeColor = $muted
-$historyBox.BorderStyle = "FixedSingle"
+$historyBox.BorderStyle = "None"
 $historyBox.Font = New-Object System.Drawing.Font("Consolas", 8.5)
 Refresh-HistoryList -HistoryBox $historyBox
 

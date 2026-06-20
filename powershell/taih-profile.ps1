@@ -1680,12 +1680,12 @@ function Show-TerminalAiCompletionPopup {
     $form = New-Object System.Windows.Forms.Form
     $form.Text = L '\u667a\u80fd\u8865\u5168'
     $form.StartPosition = "Manual"
-    $form.FormBorderStyle = "FixedSingle"
+    $form.FormBorderStyle = "None"
     $form.ShowInTaskbar = $false
     $form.TopMost = $true
     $form.BackColor = $bg
     $form.ForeColor = $fg
-    $form.Size = New-Object System.Drawing.Size(760, 260)
+    $form.Size = New-Object System.Drawing.Size(720, 236)
     $form.KeyPreview = $true
 
     $point = Get-TerminalAiCursorScreenPoint
@@ -1698,14 +1698,14 @@ function Show-TerminalAiCompletionPopup {
     $root.Dock = "Fill"
     $root.RowCount = 4
     $root.ColumnCount = 1
-    $root.Padding = New-Object System.Windows.Forms.Padding(8)
-    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 24)))
+    $root.Padding = New-Object System.Windows.Forms.Padding(6)
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 20)))
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
-    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 34)))
-    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 36)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
 
     $hint = New-Object System.Windows.Forms.Label
-    $hint.Text = L '\u672c\u5730\u5019\u9009\u7acb\u5373\u663e\u793a\uff0cAI \u5019\u9009\u540e\u53f0\u8ffd\u52a0\uff1bEnter \u63d2\u5165\uff0cCtrl+E/F1 \u89e3\u91ca\uff0cEsc \u53d6\u6d88\u3002'
+    $hint.Text = L 'Enter \u63d2\u5165  \u00b7  Ctrl+E/F1 \u89e3\u91ca  \u00b7  Esc/\u70b9\u51fb\u7ec8\u7aef\u5173\u95ed'
     $hint.Dock = "Fill"
     $hint.ForeColor = $muted
     $hint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
@@ -1714,14 +1714,14 @@ function Show-TerminalAiCompletionPopup {
     $list.Dock = "Fill"
     $list.BackColor = $surface
     $list.ForeColor = $fg
-    $list.BorderStyle = "FixedSingle"
+    $list.BorderStyle = "None"
     $list.Font = New-Object System.Drawing.Font("Consolas", 10)
 
     $edit = New-Object System.Windows.Forms.TextBox
     $edit.Dock = "Fill"
     $edit.BackColor = [System.Drawing.Color]::Black
     $edit.ForeColor = $fg
-    $edit.BorderStyle = "FixedSingle"
+    $edit.BorderStyle = "None"
     $edit.Font = New-Object System.Drawing.Font("Consolas", 10)
 
     $bottom = New-Object System.Windows.Forms.FlowLayoutPanel
@@ -1732,11 +1732,13 @@ function Show-TerminalAiCompletionPopup {
     function New-CompletionButton([string]$Text) {
         $button = New-Object System.Windows.Forms.Button
         $button.Text = $Text
-        $button.Width = 86
-        $button.Height = 28
+        $button.Width = 78
+        $button.Height = 25
         $button.FlatStyle = "Flat"
         $button.BackColor = $surface
         $button.ForeColor = $fg
+        $button.Margin = New-Object System.Windows.Forms.Padding(4, 2, 0, 2)
+        $button.FlatAppearance.BorderColor = [System.Drawing.Color]::FromArgb(70, 70, 70)
         return $button
     }
 
@@ -1752,12 +1754,13 @@ function Show-TerminalAiCompletionPopup {
     $insert.BackColor = $accent
     $copy = New-CompletionButton (L '\u590d\u5236')
     $explain = New-CompletionButton (L '\u89e3\u91ca')
-    $close = New-CompletionButton (L '\u53d6\u6d88')
+    $close = New-CompletionButton (L '\u00d7')
+    $close.Width = 36
     $status = New-Object System.Windows.Forms.Label
     $status.Text = L '\u672c\u5730\u5019\u9009\u5df2\u52a0\u8f7d\uff0cAI \u6b63\u5728\u540e\u53f0\u8865\u5145...'
     $status.AutoSize = $true
     $status.ForeColor = $muted
-    $status.Padding = New-Object System.Windows.Forms.Padding(0, 7, 12, 0)
+    $status.Padding = New-Object System.Windows.Forms.Padding(0, 5, 12, 0)
 
     [void]$bottom.Controls.Add($close)
     [void]$bottom.Controls.Add($copy)
@@ -1895,6 +1898,11 @@ function Show-TerminalAiCompletionPopup {
         elseif ($_.KeyCode -eq "F1" -or ($_.Control -and $_.KeyCode -eq "E")) {
             $_.SuppressKeyPress = $true
             $explain.PerformClick()
+        }
+    })
+    $form.Add_Deactivate({
+        if ($env:TAIH_TEST_COMPLETION_POPUP_WAIT_AI -ne "1" -and $form.Visible) {
+            $form.Close()
         }
     })
     $form.Add_FormClosed({
