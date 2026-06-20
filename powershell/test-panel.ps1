@@ -68,11 +68,16 @@ try {
 Write-Host "test: AI completion schema can carry multiple candidates"
 $apiPath = Join-Path $root "src\api.js"
 $promptPath = Join-Path $root "src\prompts.js"
-if ((Get-Content -LiteralPath $apiPath -Raw) -notmatch "completions") {
+$apiSource = Get-Content -LiteralPath $apiPath -Raw
+$promptSource = Get-Content -LiteralPath $promptPath -Raw
+if ($apiSource -notmatch "completions") {
     throw "API normalization does not include completions array"
 }
-if ((Get-Content -LiteralPath $promptPath -Raw) -notmatch "3-6 useful alternative") {
+if ($promptSource -notmatch "complete" -or $promptSource -notmatch "--help") {
     throw "prompt does not ask for multiple AI completion candidates"
+}
+if ($apiSource -notmatch 'input: `\$\{prompt\.system\}\\n\\n\$\{prompt\.user\}`') {
+    throw "structured JSON request must use single string input for qyapi compatibility"
 }
 
 Write-Host "test: panel launcher is non-blocking"

@@ -31,11 +31,9 @@ export async function requestCommandHelp(config, prompt) {
   const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   const body = {
     model: config.model,
-    input: [
-      { role: "system", content: [{ type: "input_text", text: prompt.system }] },
-      { role: "user", content: [{ type: "input_text", text: prompt.user }] }
-    ],
-    text: { format: { type: "json_object" } }
+    input: `${prompt.system}\n\n${prompt.user}`,
+    text: { format: { type: "json_object" } },
+    store: false
   };
 
   const effort = config.reasoningEffort.toLowerCase();
@@ -90,10 +88,11 @@ export async function requestCommandHelpTextStream(config, prompt, onText) {
     body: JSON.stringify({
       model: config.model,
       input: [
-        { role: "system", content: [{ type: "input_text", text: prompt.system }] },
-        { role: "user", content: [{ type: "input_text", text: prompt.user }] }
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user }
       ],
-      stream: true
+      stream: true,
+      store: false
     })
   });
 

@@ -6,7 +6,8 @@ const zh = {
   service: "服务名",
   process: "进程名",
   package: "包名",
-  device: "设备序列号"
+  device: "设备序列号",
+  namespace: "命名空间"
 };
 
 const placeholders = [
@@ -17,59 +18,60 @@ const placeholders = [
   `<${zh.service}>`,
   `<${zh.process}>`,
   `<${zh.package}>`,
-  `<${zh.device}>`
+  `<${zh.device}>`,
+  `<${zh.namespace}>`
 ].join(", ");
 
-const schemaInstruction = `Return only compact JSON with this shape:
+const schemaInstruction = `只返回紧凑 JSON，不要输出 Markdown，不要包裹代码块。JSON 结构必须是：
 {
-  "title": "short Chinese title",
-  "summary": "one sentence",
+  "title": "简短中文标题",
+  "summary": "一句话说明",
   "confidence": "high|medium|low",
-  "completion": "best exact text to append, or empty string",
-  "completions": ["alternative full commands or exact append texts"],
-  "usage": ["clear usage point"],
+  "completion": "最佳补全文本；如果不适合追加则留空",
+  "completions": ["3 到 6 条可直接使用或继续编辑的完整命令"],
+  "usage": ["清楚的常规用法"],
   "examples": [
     {
-      "command": "copyable command using placeholders like ${placeholders}",
-      "purpose": "what this command does"
+      "command": "可复制命令，变量必须使用 ${placeholders} 这类占位符",
+      "purpose": "这条命令的作用"
     }
   ],
-  "risks": ["risk or safety note"],
-  "next_steps": ["actionable next step"]
+  "risks": ["风险或安全提醒"],
+  "next_steps": ["可以继续做的下一步"]
 }`;
 
 function styleInstructions(outputStyle = "standard", extraInstructions = "") {
   const style = String(outputStyle || "standard").toLowerCase();
   const rules = {
     brief: [
-      "Output must be short: at most 8 lines.",
-      "Use this order: purpose, common usage, at most 2 examples, risks if any.",
-      "Separate sections with one blank line.",
-      "Use two-space indentation for bullets and example purposes.",
-      "Do not include long tables, exhaustive parameter lists, or background essays."
+      "输出必须简短：最多 8 行。",
+      "顺序固定为：作用、常用用法、最多 2 个示例、有风险才提醒。",
+      "段落之间保留一个空行。",
+      "列表和示例说明使用两个空格缩进。",
+      "不要输出长表格、完整参数手册或背景长文。"
     ],
     standard: [
-      "Output should be practical and not verbose.",
-      "Prefer bullets over long paragraphs.",
-      "Separate sections with one blank line and keep indentation readable.",
-      "Include examples only when they clarify real usage."
+      "输出要实用，不要啰嗦。",
+      "优先使用短列表，不写长段落。",
+      "段落之间保留一个空行，缩进要方便阅读。",
+      "只有示例能澄清真实用法时才给示例。"
     ],
     examples: [
-      "Focus on copyable examples.",
-      "Use placeholders for variable parts.",
-      "Explain each example in one short sentence.",
-      "Put a blank line between examples when the answer is longer than four lines."
+      "重点给可复制示例。",
+      "变量部分必须使用占位符。",
+      "每个示例用一句话说明作用。",
+      "超过四行时，示例之间保留空行。"
     ],
     custom: [
-      "Follow the user's custom output rules exactly when they are safe.",
-      "If the answer would violate the custom rules, rewrite it until it matches the rules.",
-      "Keep blank lines and indentation readable unless the custom rules explicitly say otherwise."
+      "严格遵守用户自定义输出规则，前提是规则安全。",
+      "如果初稿不符合规则，必须重写到符合规则。",
+      "除非自定义规则明确要求，否则保持空行和缩进可读。"
     ]
   }[style] || [];
 
   const custom = String(extraInstructions || "").trim();
   if (custom) {
-    rules.push("Custom output rules:");
+    rules.push("用户自定义输出规则：");
     rules.push(custom);
   }
   return rules;
@@ -77,32 +79,32 @@ function styleInstructions(outputStyle = "standard", extraInstructions = "") {
 
 export function buildPrompt({ mode, text, shell, source = "typed text", outputStyle = "standard", extraInstructions = "" }) {
   const task = {
-    explain: "Explain this terminal command. Include common usage, parameters, examples, and risks.",
-    complete: "Complete the current terminal command prefix. Prefer safe, conventional continuations. Put the best exact append text in completion. Put 3-6 useful alternative full commands in completions and examples.command.",
-    fix: "Diagnose this terminal error or failed command. Explain the likely cause and provide a fix."
+    explain: "解释这条终端命令。说明作用、常用参数、示例和风险。",
+    complete: "补全当前终端命令前缀。给出安全、常规、实用的候选命令。",
+    fix: "诊断这条命令或报错的原因，并给出修复步骤。"
   }[mode];
 
   return {
     system: [
-      "You are a senior terminal assistant for Windows PowerShell, CMD, Git, SSH, Python, Java, Node.js, Docker, Android/ADB, and embedded development.",
-      "Answer in Simplified Chinese.",
-      "Be concise, practical, and safe.",
-      "Never suggest destructive commands unless the user explicitly asks; if a command can delete data, say so clearly.",
-      "When completing, preserve the user's intent and avoid inventing private paths or secrets.",
-      "For complete mode, provide multiple practical candidate commands, not only --help. Use placeholders for unknown values.",
-      `For examples, use angle-bracket placeholders for variable parts, such as ${placeholders}.`,
-      "Do not replace placeholders with fake real values unless the user already provided the value.",
-      "Every example must explain the command's purpose in the purpose field.",
-      "If the input came from a selected fragment, explain that fragment as the active context.",
+      "你是资深终端命令助手，熟悉 Windows PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、Kubernetes、Android/ADB 和嵌入式开发。",
+      "必须用简体中文回答。",
+      "回答要简洁、实用、安全。",
+      "不要建议破坏性命令，除非用户明确要求；如果命令可能删除数据、覆盖文件或停止服务，必须明确提醒。",
+      "补全命令时保留用户意图，不要编造私有路径、真实密钥、真实账号或真实主机。",
+      "complete 模式必须给出多条实际候选命令，不要只给 --help。",
+      `示例里的可变内容必须使用尖括号占位符，例如 ${placeholders}。`,
+      "不要用假真实值替代占位符，除非用户输入里已经提供了该值。",
+      "每个示例都必须在 purpose 字段说明作用。",
+      "如果输入来自选中文本，把选中文本作为当前上下文解释。",
       ...styleInstructions(outputStyle, extraInstructions),
       schemaInstruction
     ].join("\n"),
     user: [
-      `Mode: ${mode}`,
-      `Shell/context: ${shell}`,
-      `Input source: ${source}`,
-      `Task: ${task}`,
-      "Input:",
+      `模式: ${mode}`,
+      `Shell/上下文: ${shell}`,
+      `输入来源: ${source}`,
+      `任务: ${task}`,
+      "输入:",
       text
     ].join("\n")
   };
@@ -117,17 +119,17 @@ export function buildPlainPrompt({ mode, text, shell, source = "typed text", out
 
   return {
     system: [
-      "你是资深终端命令助手，熟悉 PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、ADB 和嵌入式开发。",
+      "你是资深终端命令助手，熟悉 PowerShell、CMD、Linux shell、Git、SSH、Python、Java、Node.js、Docker、Kubernetes、ADB 和嵌入式开发。",
       "用简体中文回答。",
       "输出要清晰、可扫描、实用。",
-      `示例中的可变内容必须用尖括号占位，例如 ${placeholders}。`,
+      `示例中的可变内容必须使用尖括号占位符，例如 ${placeholders}。`,
       "每条示例都要说明作用。",
       "如果命令有删除、覆盖、停止服务等风险，必须明确提醒。",
       ...styleInstructions(outputStyle, extraInstructions)
     ].join("\n"),
     user: [
       `模式: ${mode}`,
-      `Shell/context: ${shell}`,
+      `Shell/上下文: ${shell}`,
       `输入来源: ${source}`,
       `任务: ${task}`,
       "输入:",
