@@ -257,9 +257,12 @@ taih-panel
 
 ## SSH 远端使用
 
-进入 SSH 会话后，本地 PowerShell 快捷键通常不会再接管命令行，因为当前输入已经由远端 shell 处理。
+这里要分清两个概念：
 
-如果只是想分析远端终端里已经显示的命令、报错或日志，推荐使用本机托盘的全局选区热键，不需要在服务器安装任何东西：
+- 本机 Windows Terminal 能看到 SSH 标签页里显示的文字，也能复制你用鼠标选中的内容。
+- 远端服务器里的 bash/readline 不能读取 Windows Terminal 的鼠标选区，因为选区属于本机终端 UI。
+
+所以，如果只是想分析你桌面上已经看到的远端命令、报错或日志，推荐使用本机托盘的全局选区热键，不需要在服务器安装任何东西：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\tray.ps1
@@ -271,9 +274,11 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 - 按 `Ctrl+Alt+/`：复制选中文本并打开本机解释面板。
 - 按 `Ctrl+Alt+F`：复制选中文本并打开本机诊断面板。
 
-这个方式只读取本机终端选区/剪贴板，API key 仍然留在本机。注意：如果没有选中文本，`Ctrl+C` 在终端里可能会被远端 shell 当作中断，所以使用前请先选中文本。
+这个方式读取的是本机 Windows Terminal 选区/剪贴板，API key 仍然留在本机。也就是说，你在 SSH 里敲命令、看到输出，本机助手可以通过“选中并复制”分析这些文本。
 
-如果需要在远端命令行里直接补全当前输入，或者用 `taih-panel` 把管道内容发回本机，则使用反向隧道方案：
+注意：如果没有选中文本，`Ctrl+C` 在终端里可能会被远端 shell 当作中断，所以使用前请先选中文本。
+
+如果想“不选中文本，直接读取远端当前正在编辑的命令行”，本机 PowerShell 的 PSReadLine 已经拿不到这段输入，因为输入已经交给 ssh 进程和远端 shell。这个场景要使用远端 bash 集成，让远端 readline 把当前命令通过反向隧道发回本机：
 
 ```powershell
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888
