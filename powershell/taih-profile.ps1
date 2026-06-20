@@ -1576,6 +1576,8 @@ function Show-TerminalAiCompletionPopup {
     $edit.SelectionStart = $edit.TextLength
 
     $script:TaihCompletionChoice = $null
+    $stdoutFile = [System.IO.Path]::GetTempFileName()
+    $stderrFile = [System.IO.Path]::GetTempFileName()
     $process = $null
 
     if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
@@ -1583,18 +1585,7 @@ function Show-TerminalAiCompletionPopup {
     } else {
         $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $Prefix) | ForEach-Object { Q $_ }) -join " "
         try {
-            $psi = New-Object System.Diagnostics.ProcessStartInfo
-            $psi.FileName = "node"
-            $psi.Arguments = $argumentLine
-            $psi.UseShellExecute = $false
-            $psi.RedirectStandardOutput = $true
-            $psi.RedirectStandardError = $true
-            $psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8
-            $psi.StandardErrorEncoding = [System.Text.Encoding]::UTF8
-            $psi.CreateNoWindow = $true
-            $process = New-Object System.Diagnostics.Process
-            $process.StartInfo = $psi
-            [void]$process.Start()
+            $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
         } catch {
             $status.Text = L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff0c\u53ef\u5148\u7528\u672c\u5730\u5019\u9009'
         }
@@ -1815,8 +1806,8 @@ function Show-TerminalAiCompletionPopup {
                 try { $process.Refresh() } catch {}
                 $raw = ""
                 $err = ""
-                try { $raw = $process.StandardOutput.ReadToEnd().Trim() } catch {}
-                try { $err = $process.StandardError.ReadToEnd().Trim() } catch {}
+                try { $raw = [System.IO.File]::ReadAllText($stdoutFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
+                try { $err = [System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
                 $before = $list.Items.Count
                 $candidates = New-Object System.Collections.Generic.List[string]
                 if ($raw.Trim()) {
@@ -1838,18 +1829,35 @@ function Show-TerminalAiCompletionPopup {
                 $added = $list.Items.Count - $before
                 if ($added -gt 0) {
                     $status.Text = (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added
+                    if ($env:TAIH_TEST_COMPLETION_POPUP_WAIT_AI -eq "1") {
+                        $script:TaihCompletionChoice = "AI_ADDED:${added}:" + [string]$list.Items[$list.Items.Count - 1]
+                        $form.Close()
+                    }
                     return
                 }
                 if ($process.ExitCode -ne 0) {
                     if ($err.Length -gt 140) { $err = $err.Substring(0, 140) + "..." }
                     $codeText = "exit=$($process.ExitCode)"
                     $status.Text = if ($err) { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + "$codeText $err" } else { (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009\uff1a') + $codeText }
+                    if ($env:TAIH_TEST_COMPLETION_POPUP_WAIT_AI -eq "1") {
+                        $script:TaihCompletionChoice = "AI_FAILED:" + $status.Text
+                        $form.Close()
+                    }
                     return
                 }
                 $status.Text = L 'AI \u6ca1\u6709\u8fd4\u56de\u65b0\u5019\u9009'
+                if ($env:TAIH_TEST_COMPLETION_POPUP_WAIT_AI -eq "1") {
+                    $script:TaihCompletionChoice = "AI_EMPTY"
+                    $form.Close()
+                }
             } catch {
                 $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
+                if ($env:TAIH_TEST_COMPLETION_POPUP_WAIT_AI -eq "1") {
+                    $script:TaihCompletionChoice = "AI_PARSE_FAILED:" + $_.Exception.Message
+                    $form.Close()
+                }
             } finally {
+                Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
                 try { $process.Dispose() } catch {}
             }
         })
@@ -1891,12 +1899,14 @@ function Show-TerminalAiCompletionPopup {
     $form.Add_FormClosed({
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
     })
 
     if ($env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -eq "1") {
         $script:TaihCompletionChoice = [string]$edit.Text
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
         $form.Dispose()
         return $script:TaihCompletionChoice
     }
