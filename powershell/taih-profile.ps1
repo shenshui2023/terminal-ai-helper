@@ -499,8 +499,6 @@ function Show-TerminalAiPanel {
     $split.Dock = "Fill"
     $split.Orientation = "Vertical"
     $split.SplitterDistance = 90
-    $split.Panel1MinSize = 72
-    $split.Panel2MinSize = 320
     $split.BackColor = $bg
 
     $history = New-Object System.Windows.Forms.ListBox

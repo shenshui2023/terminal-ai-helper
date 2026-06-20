@@ -474,8 +474,6 @@ $split = New-Object System.Windows.Forms.SplitContainer
 $split.Dock = "Fill"
 $split.Orientation = "Vertical"
 $split.SplitterDistance = 84
-$split.Panel1MinSize = 72
-$split.Panel2MinSize = 260
 $split.BackColor = $bg
 
 $historyBox = New-Object System.Windows.Forms.ListBox

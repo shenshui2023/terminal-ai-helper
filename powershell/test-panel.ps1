@@ -58,6 +58,44 @@ try {
     Remove-Item Env:\TAIH_TEST_NO_PANEL_START -ErrorAction SilentlyContinue
 }
 
+Write-Host "test: panel process stays alive"
+$panelInput = [System.IO.Path]::GetTempFileName()
+$panelOut = [System.IO.Path]::GetTempFileName()
+$panelErr = [System.IO.Path]::GetTempFileName()
+[System.IO.File]::WriteAllText($panelInput, "", [System.Text.Encoding]::UTF8)
+$panelProcess = Start-Process -FilePath "powershell.exe" `
+    -ArgumentList @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $panelPath,
+        "-InputFile", $panelInput,
+        "-Mode", "explain",
+        "-PanelId", "test-panel-smoke",
+        "-AnchorX", "-1",
+        "-AnchorY", "-1",
+        "-AnchorW", "-1",
+        "-AnchorH", "-1"
+    ) `
+    -RedirectStandardOutput $panelOut `
+    -RedirectStandardError $panelErr `
+    -WindowStyle Hidden `
+    -PassThru
+try {
+    Start-Sleep -Seconds 2
+    if ($panelProcess.HasExited) {
+        $stderr = ""
+        try { $stderr = Get-Content -LiteralPath $panelErr -Raw -ErrorAction SilentlyContinue } catch {}
+        throw "panel process exited during smoke test: $stderr"
+    }
+} finally {
+    if ($panelProcess -and -not $panelProcess.HasExited) {
+        Stop-Process -Id $panelProcess.Id -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item -LiteralPath $panelInput, $panelOut, $panelErr -Force -ErrorAction SilentlyContinue
+    $smokeDir = Join-Path $env:USERPROFILE ".terminal-ai-helper\panels"
+    Remove-Item -Path (Join-Path $smokeDir "test-panel-smoke.*") -Force -ErrorAction SilentlyContinue
+}
+
 function New-TestControls {
     param([string]$Text)
     $form = New-Object System.Windows.Forms.Form
