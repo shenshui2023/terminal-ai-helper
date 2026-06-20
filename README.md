@@ -191,6 +191,19 @@ journalctl -u <服务名> -n 80 --no-pager | taih-panel fix
 
 说明：远端 shell 不能直接读取你在 Windows Terminal 里用鼠标选中的文本，因为选区属于本机终端 UI，不属于服务器 bash/readline。推荐做法是用管道或 `taih-panel` 把文本发回本机，本机保留 API key 并负责展示面板。
 
+如果远端快捷键没反应，先在服务器里运行：
+
+```bash
+taih-keys
+```
+
+常见原因：
+
+- 当前不是交互式 `bash`，`bind -x` 不生效；可以改用 `taih ...` 或 `taih-panel ...` 命令。
+- 没有在当前 SSH 会话里执行 `source /path/to/terminal-ai-helper/remote/taih-bash.sh`。
+- Windows Terminal、输入法或远端程序抢走了 `Ctrl+Space` / `Alt+F`。远端脚本同时支持 `Alt+F` 和 `Alt+f`，也可以直接用命令兜底。
+- 本机没有启动 `node ...\taih.js serve --port 17888`，或 SSH 没带 `-R 17888:127.0.0.1:17888`。
+
 如果不想在服务器上安装任何内容，可以把远端终端输出复制到本机，然后在本机 PowerShell 中运行：
 
 ```powershell

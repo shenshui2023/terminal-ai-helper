@@ -31,7 +31,7 @@ foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar")) {
         throw "missing hotkey: $key"
     }
 }
-foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix")) {
+foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys")) {
     if (-not (Get-Alias $aliasName -ErrorAction SilentlyContinue)) {
         throw "missing alias: $aliasName"
     }

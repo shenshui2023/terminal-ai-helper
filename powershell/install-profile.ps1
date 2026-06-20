@@ -14,14 +14,24 @@ if (-not (Test-Path $profilePath)) {
 }
 
 $line = ". `"$HelperProfile`""
-$content = Get-Content -Raw -Path $profilePath
+$content = if (Test-Path $profilePath) { Get-Content -Raw -LiteralPath $profilePath } else { "" }
 
 if ($content -notlike "*$HelperProfile*") {
-    Add-Content -Path $profilePath -Value ""
-    Add-Content -Path $profilePath -Value "# terminal-ai-helper"
-    Add-Content -Path $profilePath -Value $line
-    Write-Host "Installed terminal-ai-helper into PowerShell profile:" -ForegroundColor Green
-    Write-Host "  $profilePath"
+    $newContent = ($content.TrimEnd() + "`r`n`r`n# terminal-ai-helper`r`n$line`r`n").TrimStart()
+    try {
+        Set-Content -LiteralPath $profilePath -Value $newContent -Encoding UTF8 -ErrorAction Stop
+        Write-Host "Installed terminal-ai-helper into PowerShell profile:" -ForegroundColor Green
+        Write-Host "  $profilePath"
+    } catch {
+        Write-Host "Failed to write PowerShell profile:" -ForegroundColor Red
+        Write-Host "  $profilePath"
+        Write-Host $_.Exception.Message -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Run this command manually in your normal PowerShell session:" -ForegroundColor Yellow
+        Write-Host "  Add-Content -Path `"$profilePath`" -Value '# terminal-ai-helper'"
+        Write-Host "  Add-Content -Path `"$profilePath`" -Value '$line'"
+        exit 1
+    }
 }
 else {
     Write-Host "terminal-ai-helper is already installed in:" -ForegroundColor Yellow

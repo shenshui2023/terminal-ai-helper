@@ -94,9 +94,29 @@ _taih_readline_complete() {
   fi
 }
 
-bind -x '"\e/":_taih_readline_explain'
-bind -x '"\e?":_taih_readline_panel'
-bind -x '"\e[1;3F":_taih_readline_fix'
-bind -x '"\C- ":_taih_readline_complete'
+taih-keys() {
+  echo "terminal-ai-helper remote key status:"
+  echo "  shell: ${SHELL:-unknown}"
+  echo "  bash: ${BASH_VERSION:-not bash}"
+  echo "  api: ${TAIH_REMOTE_URL}"
+  echo "  panel: ${TAIH_REMOTE_PANEL_URL}"
+  echo "  shortcuts:"
+  echo "    Alt+/        explain current remote command"
+  echo "    Alt+?        open local Windows panel"
+  echo "    Alt+F or Alt+f diagnose current remote command"
+  echo "    Ctrl+Space   complete current remote command"
+  bind -X 2>/dev/null | grep _taih || true
+}
 
-echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+? local panel, Alt+F fix, Ctrl+Space complete"
+if [ -n "${BASH_VERSION:-}" ]; then
+  bind -x '"\e/":_taih_readline_explain'
+  bind -x '"\e?":_taih_readline_panel'
+  bind -x '"\ef":_taih_readline_fix'
+  bind -x '"\eF":_taih_readline_fix'
+  bind -x '"\e[1;3F":_taih_readline_fix'
+  bind -x '"\C- ":_taih_readline_complete'
+else
+  echo "terminal-ai-helper remote warning: shortcuts require interactive bash; use taih/taih-panel commands instead"
+fi
+
+echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+? local panel, Alt+F fix, Ctrl+Space complete. Run taih-keys to diagnose."

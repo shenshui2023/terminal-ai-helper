@@ -997,6 +997,21 @@ function Invoke-TerminalAiClipboard {
     Invoke-TerminalAiHelper -Mode $Mode -Text $text -Window:$Window -Copy:$Copy
 }
 
+function Show-TerminalAiKeyStatus {
+    Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5feb\u6377\u952e\u72b6\u6001\uff1a') -ForegroundColor DarkCyan
+    Write-Host "  Profile: $($PROFILE.CurrentUserCurrentHost)"
+    Write-Host "  Script:  $PSCommandPath"
+    Write-Host "  PSReadLine: $((Get-Module PSReadLine).Version)"
+    Write-Host ""
+    Get-PSReadLineKeyHandler -Bound |
+        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F") } |
+        Select-Object Key,Function,Description |
+        Format-Table -AutoSize
+    Write-Host (L '\u5982\u679c\u5217\u8868\u4e3a\u7a7a\uff0c\u8bf7\u5148\u8fd0\u884c\uff1a') -ForegroundColor Yellow
+    Write-Host "  . `"$PSCommandPath`""
+    Write-Host (L '\u5982 Ctrl+Space \u65e0\u53cd\u5e94\uff0c\u901a\u5e38\u662f\u8f93\u5165\u6cd5\u6216 Windows Terminal \u62a2\u5360\uff1b\u53ef\u5148\u7528 Alt+? \u6216\u547d\u4ee4 taih-panel\u3002') -ForegroundColor Yellow
+}
+
 Set-PSReadLineKeyHandler -Chord "Alt+/" -ScriptBlock { Show-TerminalAiUsage }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+/" -ScriptBlock { Show-TerminalAiUsageWindow }
 Set-PSReadLineKeyHandler -Chord "Alt+?" -ScriptBlock { Show-TerminalAiPanel }
@@ -1011,6 +1026,7 @@ Set-Alias taih-popup Show-TerminalAiUsageWindow -Force
 Set-Alias taih-panel Show-TerminalAiPanel -Force
 Set-Alias taih-clip Invoke-TerminalAiClipboard -Force
 Set-Alias taih-fix Show-TerminalAiFixWindow -Force
+Set-Alias taih-keys Show-TerminalAiKeyStatus -Force
 
 Write-Host (L '\u7ec8\u7aef AI \u52a9\u624b\u5df2\u52a0\u8f7d\uff1a') -ForegroundColor DarkCyan
 Write-Host (L '  Alt+/        \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4')
