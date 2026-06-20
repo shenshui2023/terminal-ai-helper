@@ -79,6 +79,13 @@ if ($promptSource -notmatch "complete" -or $promptSource -notmatch "--help") {
 if ($apiSource -notmatch 'input: `\$\{prompt\.system\}\\n\\n\$\{prompt\.user\}`') {
     throw "structured JSON request must use single string input for qyapi compatibility"
 }
+$trayPath = Join-Path $root "powershell\tray.ps1"
+$parseErrors = $null
+[System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $trayPath -Raw), [ref]$parseErrors) | Out-Null
+if ($parseErrors) {
+    $parseErrors | Format-List *
+    throw "PowerShell parse failed: $trayPath"
+}
 
 Write-Host "test: completion popup handles AI process and explain action"
 $profileSource = Get-Content -LiteralPath $profilePath -Raw
@@ -104,6 +111,14 @@ if ($panelSource -notmatch '\$form\.FormBorderStyle = "None"') {
 }
 if ($panelSource -notmatch '\$dockOverlap = 10' -or $panelSource -notmatch '\$anchor\.X \+ \$anchor\.W - \$dockOverlap') {
     throw "manager panel should overlap the terminal edge to avoid a visible gap"
+}
+
+$traySource = Get-Content -LiteralPath $trayPath -Raw
+if ($traySource -notmatch 'RegisterHotKey' -or $traySource -notmatch 'Invoke-TerminalAiSelectedTextPanel') {
+    throw "tray should provide global selected-text hotkeys for SSH terminals"
+}
+if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F') {
+    throw "tray should document global selected-text hotkeys in its menu"
 }
 
 Write-Host "test: panel launcher is non-blocking"

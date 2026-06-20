@@ -228,7 +228,21 @@ taih-panel
 
 进入 SSH 会话后，本地 PowerShell 快捷键通常不会再接管命令行，因为当前输入已经由远端 shell 处理。
 
-推荐方案是 API key 留在本机，本机启动 helper server，然后通过 SSH 反向隧道给远端使用：
+如果只是想分析远端终端里已经显示的命令、报错或日志，推荐使用本机托盘的全局选区热键，不需要在服务器安装任何东西：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\tray.ps1
+```
+
+用法：
+
+- 在 Windows Terminal 的 SSH 标签页里，用鼠标选中一段远端命令、报错或日志。
+- 按 `Ctrl+Alt+/`：复制选中文本并打开本机解释面板。
+- 按 `Ctrl+Alt+F`：复制选中文本并打开本机诊断面板。
+
+这个方式只读取本机终端选区/剪贴板，API key 仍然留在本机。注意：如果没有选中文本，`Ctrl+C` 在终端里可能会被远端 shell 当作中断，所以使用前请先选中文本。
+
+如果需要在远端命令行里直接补全当前输入，或者用 `taih-panel` 把管道内容发回本机，则使用反向隧道方案：
 
 ```powershell
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888
