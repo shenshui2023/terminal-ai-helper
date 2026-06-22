@@ -6,12 +6,13 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $profilePath = Join-Path $root "apps\powershell\profile.ps1"
 $panelPath = Join-Path $root "apps\powershell\panel.ps1"
+$completePopupPath = Join-Path $root "apps\powershell\complete-popup.ps1"
 $sshPanelPath = Join-Path $root "apps\powershell\ssh-panel.ps1"
 $trayInstallPath = Join-Path $root "scripts\install\tray-startup.ps1"
 
 Write-Host "test: parsing PowerShell profile"
 $parseErrors = $null
-foreach ($path in @($profilePath, $panelPath, $sshPanelPath, $trayInstallPath)) {
+foreach ($path in @($profilePath, $panelPath, $completePopupPath, $sshPanelPath, $trayInstallPath)) {
     $parseErrors = $null
     [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $path -Raw), [ref]$parseErrors) | Out-Null
     if ($parseErrors) {
@@ -96,6 +97,9 @@ if ($cliSource -notmatch '"tools"' -or $cliSource -notmatch "--tools") {
 if ($serverSource -notmatch '"tools"' -or $serverSource -notmatch "body.tools") {
     throw "HTTP server must accept tools mode from SSH bridge"
 }
+if ($serverSource -notmatch '"/complete-popup"' -or $serverSource -notmatch "complete-popup.ps1") {
+    throw "HTTP server must expose the local completion popup endpoint for SSH readline"
+}
 $trayPath = Join-Path $root "apps\powershell\tray.ps1"
 $parseErrors = $null
 [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $trayPath -Raw), [ref]$parseErrors) | Out-Null
@@ -141,6 +145,11 @@ if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F
 $sshPanelSource = Get-Content -LiteralPath $sshPanelPath -Raw
 if ($sshPanelSource -notmatch "Build-SshArguments" -or $sshPanelSource -notmatch "Start-RemoteCommand" -or $sshPanelSource -notmatch "Start-AiRequest") {
     throw "ssh panel must provide remote execution and AI actions"
+}
+
+$completePopupSource = Get-Content -LiteralPath $completePopupPath -Raw
+if ($completePopupSource -notmatch "Get-LocalCandidates" -or $completePopupSource -notmatch "Start-AiCompleteProcess" -or $completePopupSource -notmatch "ConvertTo-Json") {
+    throw "completion popup must provide local candidates, AI candidates, and JSON output"
 }
 
 Write-Host "test: panel launcher is non-blocking"

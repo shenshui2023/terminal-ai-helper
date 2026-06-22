@@ -330,12 +330,22 @@ ssh -R 17888:127.0.0.1:17888 <用户名>@<主机>
 source /path/to/terminal-ai-helper/integrations/ssh/taih-bash.sh
 ```
 
-远端也可以手动把文本发回本机面板：
+远端 `Ctrl+Space` 的补全流程现在和本地更接近：
+
+- 远端 bash/readline 读取你正在编辑的当前命令行。
+- 当前命令通过 SSH 反向隧道发回本机 `http://127.0.0.1:17888/complete-popup`。
+- 本机弹出可编辑的智能补全候选框，你可以用鼠标选择、修改、复制或解释候选。
+- 选择后，候选命令会返回远端 bash，并替换当前命令行。
+
+如果本机弹窗不可用，会自动退回到原来的纯文本 AI 补全。`node ... serve --port 17888` 如果提示端口已经被占用，通常表示 helper server 已经在运行，可以直接继续使用。
+
+远端也可以手动把文本发回本机面板或补全弹窗：
 
 ```bash
 taih explain 'systemctl status <服务名>'
 journalctl -u <服务名> -n 80 --no-pager | taih fix
 taih complete 'kubectl get svc'
+taih-complete-popup 'kubectl get svc'
 taih-panel explain 'systemctl status <服务名>'
 journalctl -u <服务名> -n 80 --no-pager | taih-panel fix
 taih-tools

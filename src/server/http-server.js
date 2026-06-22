@@ -115,6 +115,73 @@ function openPanelFromServer({ mode, text, source, shell, session, tools, style 
   return { opened: true, reused: false, panelId };
 }
 
+function runCompletionPopupFromServer({ text, tools, style, noDialog, waitAi }) {
+  if (process.platform !== "win32") {
+    throw new Error("completion popup is only supported on local Windows.");
+  }
+
+  const popupScript = path.join(rootDir, "apps", "powershell", "complete-popup.ps1");
+  if (!fs.existsSync(popupScript)) {
+    throw new Error(`completion popup script not found: ${popupScript}`);
+  }
+
+  return new Promise((resolve, reject) => {
+    const args = [
+      "-NoProfile",
+      "-ExecutionPolicy", "Bypass",
+      "-File", popupScript,
+      "-Prefix", text,
+      "-Tools", tools || "auto",
+      "-Style", style || "brief"
+    ];
+    if (noDialog) args.push("-NoDialog");
+    if (waitAi) args.push("-WaitAi");
+
+    const child = spawn("powershell", args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true
+    });
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      try { child.kill(); } catch {
+        // Ignore kill failures.
+      }
+      reject(new Error("completion popup timed out."));
+    }, 10 * 60 * 1000);
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      const raw = stdout.trim();
+      if (code !== 0) {
+        reject(new Error((stderr || raw || `completion popup exited with code ${code}`).trim()));
+        return;
+      }
+      if (!raw) {
+        resolve({ ok: false, completion: "", source: "empty" });
+        return;
+      }
+      try {
+        resolve(JSON.parse(raw));
+      } catch {
+        resolve({ ok: true, completion: raw, source: "stdout" });
+      }
+    });
+  });
+}
+
+function toolMenuText(tools) {
+  return `Generate a common command menu for the ${tools || "auto"} toolset.`;
+}
+
 export async function startServer({ config, port }) {
   const server = http.createServer(async (req, res) => {
     try {
@@ -123,7 +190,7 @@ export async function startServer({ config, port }) {
         return;
       }
 
-      if (req.method !== "POST" || !["/api", "/panel"].includes(req.url)) {
+      if (req.method !== "POST" || !["/api", "/panel", "/complete-popup"].includes(req.url)) {
         send(res, 404, "text/plain; charset=utf-8", "not found");
         return;
       }
@@ -140,7 +207,7 @@ export async function startServer({ config, port }) {
         send(res, 400, "text/plain; charset=utf-8", "empty text");
         return;
       }
-      const requestText = text || `生成 ${body.tools || "auto"} 工具集的常用命令菜单。`;
+      const requestText = text || toolMenuText(body.tools || "auto");
 
       if (req.url === "/panel") {
         const result = openPanelFromServer({
@@ -153,6 +220,18 @@ export async function startServer({ config, port }) {
           style: body.style || "brief"
         });
         send(res, 200, "application/json; charset=utf-8", JSON.stringify({ ok: true, ...result }));
+        return;
+      }
+
+      if (req.url === "/complete-popup") {
+        const result = await runCompletionPopupFromServer({
+          text: requestText,
+          tools: body.tools || "auto",
+          style: body.style || "brief",
+          noDialog: Boolean(body.noDialog),
+          waitAi: Boolean(body.waitAi)
+        });
+        send(res, 200, "application/json; charset=utf-8", JSON.stringify(result));
         return;
       }
 
@@ -173,7 +252,19 @@ export async function startServer({ config, port }) {
     }
   });
 
-  await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
-  console.log(`terminal-ai-helper server listening on http://127.0.0.1:${port}`);
+  await new Promise((resolve, reject) => {
+    server.once("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.log(`terminal-ai-helper server already listening on http://127.0.0.1:${port}`);
+        resolve();
+        return;
+      }
+      reject(error);
+    });
+    server.listen(port, "127.0.0.1", resolve);
+  });
+  if (server.listening) {
+    console.log(`terminal-ai-helper server listening on http://127.0.0.1:${port}`);
+  }
   console.log("Use SSH reverse tunnel: ssh -R 17888:127.0.0.1:17888 <user>@<host>");
 }
