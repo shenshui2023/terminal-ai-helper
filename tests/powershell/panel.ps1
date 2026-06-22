@@ -6,11 +6,12 @@ $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $profilePath = Join-Path $root "apps\powershell\profile.ps1"
 $panelPath = Join-Path $root "apps\powershell\panel.ps1"
+$sshPanelPath = Join-Path $root "apps\powershell\ssh-panel.ps1"
 $trayInstallPath = Join-Path $root "scripts\install\tray-startup.ps1"
 
 Write-Host "test: parsing PowerShell profile"
 $parseErrors = $null
-foreach ($path in @($profilePath, $panelPath, $trayInstallPath)) {
+foreach ($path in @($profilePath, $panelPath, $sshPanelPath, $trayInstallPath)) {
     $parseErrors = $null
     [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $path -Raw), [ref]$parseErrors) | Out-Null
     if ($parseErrors) {
@@ -31,7 +32,7 @@ foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar", "F2", "F
         throw "missing hotkey: $key"
     }
 }
-foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-clip", "taih-fix", "taih-keys", "taih-what-key", "taih-complete-popup", "taih-complete-stable", "taih-panel-reset")) {
+foreach ($aliasName in @("taih-current", "taih-popup", "taih-panel", "taih-ssh-panel", "taih-clip", "taih-fix", "taih-keys", "taih-what-key", "taih-complete-popup", "taih-complete-stable", "taih-panel-reset")) {
     if (-not (Get-Alias $aliasName -ErrorAction SilentlyContinue)) {
         throw "missing alias: $aliasName"
     }
@@ -135,6 +136,11 @@ if ($traySource -notmatch 'RegisterHotKey' -or $traySource -notmatch 'Invoke-Ter
 }
 if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F') {
     throw "tray should document global selected-text hotkeys in its menu"
+}
+
+$sshPanelSource = Get-Content -LiteralPath $sshPanelPath -Raw
+if ($sshPanelSource -notmatch "Build-SshArguments" -or $sshPanelSource -notmatch "Start-RemoteCommand" -or $sshPanelSource -notmatch "Start-AiRequest") {
+    throw "ssh panel must provide remote execution and AI actions"
 }
 
 Write-Host "test: panel launcher is non-blocking"

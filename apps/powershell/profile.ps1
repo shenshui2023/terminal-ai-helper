@@ -880,6 +880,21 @@ SSH:
     [void]$form.ShowDialog()
 }
 
+function Show-TerminalAiSshPanel {
+    param(
+        [string]$Target = "root@us-vpn",
+        [string]$Tools = "linux,ssh,systemd,k8s,docker"
+    )
+    $panelScript = Join-Path $script:TaihRoot "apps\powershell\ssh-panel.ps1"
+    Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $panelScript,
+        "-Target", $Target,
+        "-Tools", $Tools
+    ) -WindowStyle Hidden | Out-Null
+}
+
 function Get-TerminalAiForegroundRect {
     try {
         if (-not ("TaihWin32" -as [type])) {
@@ -1941,6 +1956,7 @@ Set-PSReadLineKeyHandler -Chord "F8" -ScriptBlock { Show-TerminalAiFixWindow }
 Set-Alias taih-current Show-TerminalAiUsage -Force
 Set-Alias taih-popup Show-TerminalAiUsageWindow -Force
 Set-Alias taih-panel Show-TerminalAiPanel -Force
+Set-Alias taih-ssh-panel Show-TerminalAiSshPanel -Force
 Set-Alias taih-clip Invoke-TerminalAiClipboard -Force
 Set-Alias taih-fix Show-TerminalAiFixWindow -Force
 Set-Alias taih-keys Show-TerminalAiKeyStatus -Force
@@ -1960,3 +1976,4 @@ Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u8865
 Write-Host (L '  taih-complete-popup  \u624b\u52a8\u6253\u5f00\u53ef\u7f16\u8f91\u8865\u5168\u5019\u9009\u6846')
 Write-Host (L '  taih-complete-stable \u4e0d\u5f39\u7a97\uff0c\u76f4\u63a5\u8bf7\u6c42 AI \u5e76\u63d2\u5165\u8865\u5168')
 Write-Host (L '  taih-panel-reset     \u6e05\u7406\u5361\u4f4f\u7684\u9762\u677f\u72b6\u6001')
+Write-Host (L '  taih-ssh-panel       \u6253\u5f00 SSH \u8fdc\u7aef\u63a7\u5236\u9762\u677f')
