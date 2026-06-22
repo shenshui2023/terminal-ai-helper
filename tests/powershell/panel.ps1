@@ -28,7 +28,7 @@ Add-Type -AssemblyName System.Windows.Forms
 
 Write-Host "test: hotkeys and aliases are registered"
 $boundKeys = @(Get-PSReadLineKeyHandler -Bound | Where-Object { $_.Function -eq "CustomAction" } | ForEach-Object { $_.Key })
-foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Ctrl+Spacebar", "F2", "F3", "F4", "F8")) {
+foreach ($key in @("Alt+/", "Alt+?", "Alt+C", "Alt+F", "Alt+P", "Ctrl+Spacebar", "F2", "F3", "F4", "F8")) {
     if ($boundKeys -notcontains $key) {
         throw "missing hotkey: $key"
     }
@@ -99,6 +99,18 @@ if ($serverSource -notmatch '"tools"' -or $serverSource -notmatch "body.tools") 
 }
 if ($serverSource -notmatch '"/complete-popup"' -or $serverSource -notmatch "complete-popup.ps1") {
     throw "HTTP server must expose the local completion popup endpoint for SSH readline"
+}
+if ($cliSource -notmatch "--replace" -or $serverSource -notmatch "replaceExistingServer") {
+    throw "HTTP server must support replacing an old helper server after upgrades"
+}
+if ($serverSource -notmatch "windowsHide: false" -or $serverSource -notmatch "childPid") {
+    throw "HTTP server must launch visible local Windows UI and return child pid for diagnostics"
+}
+$sshSource = Get-Content -LiteralPath (Join-Path $root "integrations\ssh\taih-bash.sh") -Raw
+if ($sshSource -notmatch "F4 or Alt\+P" -or
+    -not $sshSource.Contains('"\e[14~":_taih_readline_complete') -or
+    -not $sshSource.Contains('"\ep":_taih_readline_complete')) {
+    throw "SSH integration must provide F4/Alt+P completion shortcuts because Ctrl+Space is often captured by IME"
 }
 $trayPath = Join-Path $root "apps\powershell\tray.ps1"
 $parseErrors = $null

@@ -1345,7 +1345,7 @@ function Show-TerminalAiKeyStatus {
     Write-Host "  PSReadLine: $((Get-Module PSReadLine).Version)"
     Write-Host ""
     Get-PSReadLineKeyHandler -Bound |
-        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Ctrl+Spacebar", "Ctrl+Shift+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F", "F2", "F3", "F4", "F8") } |
+        Where-Object { $_.Function -eq "CustomAction" -and $_.Key -in @("Alt+/", "Alt+?", "Alt+P", "Ctrl+Spacebar", "Ctrl+Shift+Spacebar", "Alt+C", "Alt+Shift+C", "Alt+F", "Alt+Shift+F", "F2", "F3", "F4", "F8") } |
         Select-Object Key,Function,Description |
         Format-Table -AutoSize
     Write-Host (L '\u5982\u679c\u5217\u8868\u4e3a\u7a7a\uff0c\u8bf7\u5148\u8fd0\u884c\uff1a') -ForegroundColor Yellow
@@ -1944,6 +1944,8 @@ Set-PSReadLineKeyHandler -Chord "Alt+Shift+/" -ScriptBlock { Show-TerminalAiUsag
 Set-PSReadLineKeyHandler -Chord "Alt+?" -ScriptBlock { Show-TerminalAiPanel }
 Set-PSReadLineKeyHandler -Chord "Ctrl+Spacebar" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand }
 try { Set-PSReadLineKeyHandler -Chord "Ctrl+Shift+Spacebar" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand } } catch {}
+try { Set-PSReadLineKeyHandler -Chord "Alt+p" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand } } catch {}
+try { Set-PSReadLineKeyHandler -Chord "Alt+P" -ScriptBlock { Show-TerminalAiCompletionPopupForCurrentCommand } } catch {}
 Set-PSReadLineKeyHandler -Chord "Alt+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+Shift+C" -ScriptBlock { Copy-TerminalAiCompletion }
 Set-PSReadLineKeyHandler -Chord "Alt+F" -ScriptBlock { Show-TerminalAiFixWindow }
@@ -1970,6 +1972,7 @@ Write-Host (L '  Alt+/        \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u6216\u5f53\u
 Write-Host (L '  Alt+?        \u6253\u5f00\u7ba1\u7406\u9762\u677f\uff08\u5f88\u591a\u952e\u76d8\u4e0a Alt+Shift+/ \u4f1a\u663e\u793a\u4e3a Alt+?\uff09')
 Write-Host (L '  Ctrl+Space   \u6253\u5f00\u667a\u80fd\u8865\u5168\u5019\u9009\u6846\uff08\u5148\u672c\u5730\uff0cAI \u540e\u53f0\u8865\u5145\uff09')
 Write-Host (L '  Ctrl+Shift+Space  \u5907\u7528\u8865\u5168\u5019\u9009\uff08Ctrl+Space \u88ab\u8f93\u5165\u6cd5\u62a2\u5360\u65f6\u7528\uff09')
+Write-Host (L '  Alt+P        \u6253\u5f00\u667a\u80fd\u8865\u5168\u5019\u9009\u6846\uff08Ctrl+Space \u88ab\u8f93\u5165\u6cd5\u62a2\u5360\u65f6\u63a8\u8350\uff09')
 Write-Host (L '  Alt+C        \u590d\u5236 AI \u8865\u5168\uff08Alt+Shift+C \u5728\u67d0\u4e9b\u7ec8\u7aef\u4f1a\u88ab\u8bc6\u522b\u4e3a Alt+C\uff09')
 Write-Host (L '  Alt+F        \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u6216\u5f53\u524d\u547d\u4ee4\uff08Alt+Shift+F \u540c\u7406\uff09')
 Write-Host (L '  F2/F3/F4/F8  \u5907\u7528\uff1a\u89e3\u91ca/\u9762\u677f/\u8865\u5168\u5019\u9009/\u8bca\u65ad')

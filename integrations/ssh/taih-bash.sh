@@ -218,7 +218,8 @@ taih-keys() {
   echo "    Alt+?        open local Windows panel"
   echo "    Alt+T        open tools menu"
   echo "    Alt+F or Alt+f diagnose current remote command"
-  echo "    Ctrl+Space   open local desktop completion popup"
+  echo "    F4 or Alt+P  open local desktop completion popup"
+  echo "    Ctrl+Space   optional completion shortcut; often captured by IME"
   echo "  commands:"
   echo "    taih explain <text>             analyze text or current line"
   echo "    taih complete <prefix>          predict command candidates"
@@ -236,9 +237,13 @@ if [ -n "${BASH_VERSION:-}" ] && [[ $- == *i* ]]; then
   bind -x '"\ef":_taih_readline_fix'
   bind -x '"\eF":_taih_readline_fix'
   bind -x '"\e[1;3F":_taih_readline_fix'
+  bind -x '"\eOS":_taih_readline_complete'
+  bind -x '"\e[14~":_taih_readline_complete'
+  bind -x '"\ep":_taih_readline_complete'
+  bind -x '"\eP":_taih_readline_complete'
   bind -x '"\C- ":_taih_readline_complete'
 else
   echo "terminal-ai-helper remote warning: shortcuts require interactive bash/readline; use taih/taih-panel commands instead"
 fi
 
-echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+? local panel, Alt+T tools, Alt+F fix, Ctrl+Space local popup complete. Run taih-keys to diagnose."
+echo "terminal-ai-helper remote loaded: Alt+/ explain, Alt+? local panel, Alt+T tools, Alt+F fix, F4/Alt+P local popup complete. Run taih-keys to diagnose."

@@ -216,7 +216,7 @@ $form = New-Object System.Windows.Forms.Form
 $form.Text = L '\u667a\u80fd\u8865\u5168'
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "None"
-$form.ShowInTaskbar = $false
+$form.ShowInTaskbar = $true
 $form.TopMost = $true
 $form.BackColor = $bg
 $form.ForeColor = $fg
@@ -303,60 +303,67 @@ $script:choiceSource = "local"
 $stdoutFile = [System.IO.Path]::GetTempFileName()
 $stderrFile = [System.IO.Path]::GetTempFileName()
 $process = $null
-try {
-    $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -StdoutFile $stdoutFile -StderrFile $stderrFile
-} catch {
-    $status.Text = (L 'AI \u5019\u9009\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
-}
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 180
-if ($process) {
-    $timer.Add_Tick({
-        if (-not $process.HasExited) { return }
-        $timer.Stop()
-        try {
-            $before = $list.Items.Count
-            foreach ($item in (Get-AiCandidatesFromFile -StdoutFile $stdoutFile)) {
-                Add-Candidate $list.Items $item
-            }
-            $added = $list.Items.Count - $before
-            if ($added -gt 0) {
-                $status.Text = (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added
-                $script:choiceSource = "ai"
-                if ($WaitAi) {
-                    $list.SelectedIndex = $before
-                    $edit.Text = [string]$list.SelectedItem
-                    $script:choice = [string]$edit.Text
-                    $form.Close()
-                }
-                return
-            }
-            $err = ""
-            try { $err = [System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
-            if ($process.ExitCode -ne 0) {
-                if ($err.Length -gt 120) { $err = $err.Substring(0, 120) + "..." }
-                $status.Text = (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009') + $(if ($err) { ": $err" } else { "" })
-            } else {
-                $status.Text = L 'AI \u672a\u8fd4\u56de\u65b0\u5019\u9009'
-            }
-            if ($WaitAi) {
-                $script:choice = [string]$edit.Text
-                $form.Close()
-            }
-        } catch {
-            $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
-            if ($WaitAi) {
-                $script:choice = [string]$edit.Text
-                $form.Close()
-            }
-        } finally {
-            Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
-            try { $process.Dispose() } catch {}
+$timer.Add_Tick({
+    if (-not $process) { return }
+    if (-not $process.HasExited) { return }
+    $timer.Stop()
+    try {
+        $before = $list.Items.Count
+        foreach ($item in (Get-AiCandidatesFromFile -StdoutFile $stdoutFile)) {
+            Add-Candidate $list.Items $item
         }
-    })
-    $timer.Start()
-}
+        $added = $list.Items.Count - $before
+        if ($added -gt 0) {
+            $status.Text = (L 'AI \u5019\u9009\u5df2\u52a0\u5165\uff1a') + $added
+            $script:choiceSource = "ai"
+            if ($WaitAi) {
+                $list.SelectedIndex = $before
+                $edit.Text = [string]$list.SelectedItem
+                $script:choice = [string]$edit.Text
+                $form.Close()
+            }
+            return
+        }
+        $err = ""
+        try { $err = [System.IO.File]::ReadAllText($stderrFile, [System.Text.Encoding]::UTF8).Trim() } catch {}
+        if ($process.ExitCode -ne 0) {
+            if ($err.Length -gt 120) { $err = $err.Substring(0, 120) + "..." }
+            $status.Text = (L 'AI \u5019\u9009\u5931\u8d25\uff0c\u5df2\u4fdd\u7559\u672c\u5730\u5019\u9009') + $(if ($err) { ": $err" } else { "" })
+        } else {
+            $status.Text = L 'AI \u672a\u8fd4\u56de\u65b0\u5019\u9009'
+        }
+        if ($WaitAi) {
+            $script:choice = [string]$edit.Text
+            $form.Close()
+        }
+    } catch {
+        $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
+        if ($WaitAi) {
+            $script:choice = [string]$edit.Text
+            $form.Close()
+        }
+    } finally {
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        try { $process.Dispose() } catch {}
+        $process = $null
+    }
+})
+
+$form.Add_Shown({
+    try {
+        $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -StdoutFile $stdoutFile -StderrFile $stderrFile
+        $timer.Start()
+    } catch {
+        $status.Text = (L 'AI \u5019\u9009\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
+        if ($WaitAi) {
+            $script:choice = [string]$edit.Text
+            $form.Close()
+        }
+    }
+})
 
 $list.Add_SelectedIndexChanged({
     if ($list.SelectedIndex -ge 0) {

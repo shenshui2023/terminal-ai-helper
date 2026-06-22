@@ -19,7 +19,8 @@ function usage() {
   taih fix [--json] <报错...>        诊断报错并给出修复建议
   taih tools [描述...]               生成常用工具命令菜单
   taih clipboard [模式]              读取剪贴板并执行 explain/complete/fix/tools
-  taih serve [--port 17888]          启动本地 HTTP helper，供 SSH 反向隧道使用
+  taih serve [--port 17888] [--replace]
+                                      启动本地 HTTP helper，供 SSH 反向隧道使用
   taih history [--json]              查看最近的命令帮助历史
   taih cache clear                   清理本地缓存
   taih cache stats                   查看缓存和历史占用
@@ -40,6 +41,7 @@ function usage() {
   --tools <auto|linux,k8s,docker,...>
                                       指定工具集，用于解析、补全和工具菜单
   --instructions-file <文件>          追加自定义输出规则或提示词
+  --replace                          serve 时替换已经占用该端口的旧 helper server
 环境变量:
   TAIH_BASE_URL        API 地址，默认 https://qyapi.cjyyswq.com
   TAIH_MODEL           模型名，默认 gpt-5.5
@@ -95,6 +97,7 @@ async function main() {
   const asRaw = takeFlag("--raw");
   const noCache = takeFlag("--no-cache");
   const stream = takeFlag("--stream");
+  const replaceExisting = takeFlag("--replace") || takeFlag("--restart");
   const copyOutput = takeFlag("--copy");
   const outputStyle = takeOption("--style", process.env.TAIH_OUTPUT_STYLE || "standard");
   const tools = takeOption("--tools", process.env.TAIH_TOOLS || "auto");
@@ -118,7 +121,7 @@ async function main() {
 
   if (mode === "serve") {
     const { startServer } = await import("../../src/server/http-server.js");
-    await startServer({ config, port });
+    await startServer({ config, port, replaceExisting });
     return;
   }
 

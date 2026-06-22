@@ -6,7 +6,7 @@
 
 ## 主要功能
 
-- `Ctrl+Space` 在当前终端光标附近打开智能补全候选框。
+- `F4` 或 `Alt+P` 在当前终端光标附近打开智能补全候选框；`Ctrl+Space` 只在没有被输入法占用时可用。
 - 候选框会先显示本地快速建议，`git`、`ssh`、`docker`、`npm`、`python`、`java`、`adb` 这类命令不用先等 API。
 - Kubernetes 常用命令也有本地候选，支持 `kube` 和 `kubectl`，例如 `kube get svc` 会直接给出 `-A`、`-n <命名空间>`、`-o wide`、`-o yaml` 等候选。
 - AI 候选会在后台补充进列表；AI 会返回多条候选命令，不要求所有命令都预存在本地。
@@ -83,13 +83,14 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js doctor
 | --- | --- |
 | `Alt+/` | 解释选中文本或当前命令 |
 | `Alt+?` | 打开管理面板，很多键盘上 `Alt+Shift+/` 会被识别为 `Alt+?` |
-| `Ctrl+Space` | 打开智能补全候选框 |
+| `F4` | 推荐：打开智能补全候选框 |
+| `Alt+P` | SSH 远端推荐：打开本机智能补全候选框 |
+| `Ctrl+Space` | 可选：未被输入法占用时打开智能补全候选框 |
 | `Ctrl+Shift+Space` | 备用：当 `Ctrl+Space` 被输入法或终端抢占时使用 |
 | `Alt+C` | 复制 AI 补全 |
 | `Alt+F` | 诊断选中文本或当前命令 |
 | `F2` | 备用：解释当前命令 |
 | `F3` | 备用：打开管理面板 |
-| `F4` | 备用：打开智能补全候选框，和 `Ctrl+Space` 相同 |
 | `F8` | 备用：诊断当前命令 |
 
 如果某个组合键没有反应，先运行：
@@ -99,7 +100,7 @@ taih-keys
 taih-what-key
 ```
 
-`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、中文输入法、远端 SSH 会话都可能抢占 `Ctrl+Space`。如果 `Ctrl+Space` 没反应，优先用 `F4` 或 `Ctrl+Shift+Space`。
+`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、中文输入法、远端 SSH 会话都可能抢占 `Ctrl+Space`。你的机器上 `Ctrl+Space` 是中英文输入法切换，所以优先用 `F4`；SSH 远端优先用 `F4` 或 `Alt+P`。
 
 ## 常用命令
 
@@ -119,7 +120,7 @@ taih-panel-reset              # 清理卡住的面板状态
 
 | 入口 | 适合场景 | 使用方式 |
 | --- | --- | --- |
-| PowerShell 快捷键 | 本地命令行补全、解释、诊断 | 加载 `powershell\taih-profile.ps1` 后使用 `Alt+/`、`F4`、`Ctrl+Space` |
+| PowerShell 快捷键 | 本地命令行补全、解释、诊断 | 加载 `powershell\taih-profile.ps1` 后使用 `Alt+/`、`F4`，`Ctrl+Space` 只作为可选键 |
 | 右侧管理面板 | 持续查看解释、历史、配置、规则 | `taih-panel` 或 `Alt+?` |
 | SSH 远端控制面板 | 像本地控制台一样操作远端服务器 | `taih-ssh-panel` |
 | 托盘全局选区 | Windows Terminal、SSH、任意窗口选中文本 | 启动 `powershell\tray.ps1`，选中文本后按 `Ctrl+Alt+/` |
@@ -151,7 +152,7 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js config get
 ssh
 ```
 
-按 `Ctrl+Space` 后会出现候选框：
+按 `F4` 后会出现候选框；如果你的输入法没有占用 `Ctrl+Space`，也可以用 `Ctrl+Space`：
 
 - 上方列表显示候选命令。
 - 下方输入框可以直接修改当前候选。
@@ -320,7 +321,7 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 如果想“不选中文本，直接读取远端当前正在编辑的命令行”，本机 PowerShell 的 PSReadLine 已经拿不到这段输入，因为输入已经交给 ssh 进程和远端 shell。这个场景可以使用远端 bash 集成，让远端 readline 把当前命令通过反向隧道发回本机：
 
 ```powershell
-node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888 --replace
 ssh -R 17888:127.0.0.1:17888 <用户名>@<主机>
 ```
 
@@ -330,14 +331,18 @@ ssh -R 17888:127.0.0.1:17888 <用户名>@<主机>
 source /path/to/terminal-ai-helper/integrations/ssh/taih-bash.sh
 ```
 
-远端 `Ctrl+Space` 的补全流程现在和本地更接近：
+远端 `F4` 或 `Alt+P` 的补全流程现在和本地更接近；`Ctrl+Space` 只在没有被输入法抢占时可用：
 
 - 远端 bash/readline 读取你正在编辑的当前命令行。
 - 当前命令通过 SSH 反向隧道发回本机 `http://127.0.0.1:17888/complete-popup`。
 - 本机弹出可编辑的智能补全候选框，你可以用鼠标选择、修改、复制或解释候选。
 - 选择后，候选命令会返回远端 bash，并替换当前命令行。
 
-如果本机弹窗不可用，会自动退回到原来的纯文本 AI 补全。`node ... serve --port 17888` 如果提示端口已经被占用，通常表示 helper server 已经在运行，可以直接继续使用。
+如果本机弹窗不可用，会自动退回到原来的纯文本 AI 补全。更新项目后如果 `node ... serve --port 17888` 提示端口已经被占用，请用 `--replace` 替换旧 helper server，否则 SSH 可能仍连到旧代码：
+
+```powershell
+node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888 --replace
+```
 
 远端也可以手动把文本发回本机面板或补全弹窗：
 

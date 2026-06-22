@@ -2,7 +2,7 @@ import http from "node:http";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { requestCommandHelp } from "../core/api.js";
 import { buildPrompt } from "../ai/prompts.js";
@@ -56,6 +56,58 @@ function isProcessAlive(pid) {
   }
 }
 
+function openLogFile(name) {
+  const logDir = path.join(userHome(), ".terminal-ai-helper", "logs");
+  fs.mkdirSync(logDir, { recursive: true });
+  const logFile = path.join(logDir, `${name}.log`);
+  return fs.openSync(logFile, "a");
+}
+
+function findWindowsPortOwner(port) {
+  if (process.platform !== "win32") return 0;
+  try {
+    const output = execFileSync("powershell", [
+      "-NoProfile",
+      "-ExecutionPolicy", "Bypass",
+      "-Command",
+      `(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort ${Number(port)} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty OwningProcess)`
+    ], {
+      encoding: "utf8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    const pid = Number(output);
+    return Number.isInteger(pid) && pid > 0 ? pid : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function wait(ms) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function replaceExistingServer(port) {
+  const pid = findWindowsPortOwner(port);
+  if (!pid || pid === process.pid) {
+    throw new Error(`port ${port} is already in use, but no replaceable owner process was found.`);
+  }
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch {
+    try {
+      execFileSync("taskkill", ["/PID", String(pid), "/F"], { windowsHide: true, stdio: "ignore" });
+    } catch (error) {
+      throw new Error(`failed to stop existing server process ${pid}: ${error.message}`);
+    }
+  }
+  for (let index = 0; index < 20; index += 1) {
+    await wait(150);
+    if (!findWindowsPortOwner(port)) return pid;
+  }
+  throw new Error(`existing server process ${pid} did not release port ${port}.`);
+}
+
 function openPanelFromServer({ mode, text, source, shell, session, tools, style }) {
   if (process.platform !== "win32") {
     throw new Error("panel mode is only supported on local Windows.");
@@ -94,7 +146,9 @@ function openPanelFromServer({ mode, text, source, shell, session, tools, style 
     return { opened: false, reused: true, panelId };
   }
 
-  const child = spawn("powershell", [
+  const outLog = openLogFile(`${panelId}.out`);
+  const errLog = openLogFile(`${panelId}.err`);
+  const child = spawn("powershell.exe", [
     "-NoProfile",
     "-ExecutionPolicy", "Bypass",
     "-File", panelScript,
@@ -107,12 +161,12 @@ function openPanelFromServer({ mode, text, source, shell, session, tools, style 
     "-AnchorW", "-1",
     "-AnchorH", "-1"
   ], {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true
+    cwd: rootDir,
+    detached: false,
+    stdio: ["ignore", outLog, errLog],
+    windowsHide: false
   });
-  child.unref();
-  return { opened: true, reused: false, panelId };
+  return { opened: true, reused: false, panelId, childPid: child.pid || 0 };
 }
 
 function runCompletionPopupFromServer({ text, tools, style, noDialog, waitAi }) {
@@ -139,7 +193,7 @@ function runCompletionPopupFromServer({ text, tools, style, noDialog, waitAi }) 
 
     const child = spawn("powershell", args, {
       stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true
+      windowsHide: false
     });
     let stdout = "";
     let stderr = "";
@@ -182,7 +236,7 @@ function toolMenuText(tools) {
   return `Generate a common command menu for the ${tools || "auto"} toolset.`;
 }
 
-export async function startServer({ config, port }) {
+export async function startServer({ config, port, replaceExisting = false }) {
   const server = http.createServer(async (req, res) => {
     try {
       if (req.method === "GET" && req.url === "/health") {
@@ -252,17 +306,29 @@ export async function startServer({ config, port }) {
     }
   });
 
+  let replacedPid = 0;
   await new Promise((resolve, reject) => {
     server.once("error", (error) => {
       if (error.code === "EADDRINUSE") {
-        console.log(`terminal-ai-helper server already listening on http://127.0.0.1:${port}`);
-        resolve();
+        if (!replaceExisting) {
+          console.log(`terminal-ai-helper server already listening on http://127.0.0.1:${port}`);
+          console.log(`After updating the project, restart it with: node bin/taih.js serve --port ${port} --replace`);
+          resolve();
+          return;
+        }
+        replaceExistingServer(port).then((pid) => {
+          replacedPid = pid;
+          server.listen(port, "127.0.0.1", resolve);
+        }).catch(reject);
         return;
       }
       reject(error);
     });
     server.listen(port, "127.0.0.1", resolve);
   });
+  if (replacedPid) {
+    console.log(`terminal-ai-helper replaced existing server process ${replacedPid}`);
+  }
   if (server.listening) {
     console.log(`terminal-ai-helper server listening on http://127.0.0.1:${port}`);
   }
