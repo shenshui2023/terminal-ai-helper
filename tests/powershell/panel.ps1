@@ -169,13 +169,18 @@ if ($parseErrors) {
 
 Write-Host "test: completion popup handles AI process and explain action"
 $profileSource = Get-Content -LiteralPath $profilePath -Raw
+$lastCompletionFunctionIndex = $profileSource.LastIndexOf("function Show-TerminalAiCompletionPopup")
+if ($lastCompletionFunctionIndex -lt 0) {
+    throw "completion popup function not found"
+}
+$activeCompletionSource = $profileSource.Substring($lastCompletionFunctionIndex)
 if ($profileSource -notmatch '\$process\.WaitForExit\(\)') {
     throw "completion popup must wait for the AI process before checking ExitCode"
 }
-if ($profileSource -notmatch '\$explain = New-CompletionButton' -or $profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain') {
+if ($activeCompletionSource -notmatch '\$explain = New-CompletionButton' -or $activeCompletionSource -notmatch 'Show-TerminalAiPanel' -or $activeCompletionSource -notmatch 'AnchorHandleOverride') {
     throw "completion popup is missing the explain action"
 }
-if ($profileSource -notmatch '\$form\.Close\(\)[\s\S]{0,180}Show-TerminalAiPanel -InitialText \$value -Mode explain') {
+if ($activeCompletionSource -notmatch '\$form\.Close\(\)[\s\S]{0,260}Show-TerminalAiPanel') {
     throw "completion popup explain action must close the modal popup"
 }
 if ($profileSource -notmatch '\$form\.FormBorderStyle = "None"' -or $profileSource -notmatch '\$form\.Add_Deactivate') {
@@ -192,8 +197,8 @@ $panelSource = Get-Content -LiteralPath $panelPath -Raw
 if ($panelSource -notmatch '\$form\.FormBorderStyle = "None"') {
     throw "manager panel should use a borderless terminal-like shell"
 }
-if ($panelSource -notmatch '\$dockOverlap = 10' -or $panelSource -notmatch '\$anchor\.X \+ \$anchor\.W - \$dockOverlap') {
-    throw "manager panel should overlap the terminal edge to avoid a visible gap"
+if ($panelSource -notmatch '\$dockGap = 0' -or $panelSource -notmatch '\$anchor\.X \+ \$anchor\.W \+ \$dockGap') {
+    throw "manager panel should dock next to the terminal edge without overlapping it"
 }
 
 $traySource = Get-Content -LiteralPath $trayPath -Raw
@@ -241,6 +246,12 @@ if ($profileSource -notmatch "Convert-TerminalAiCompletionPrefix" -or $completeP
 }
 if ($completePopupSource -notmatch "Open-CompletionExplainPanel") {
     throw "external completion popup explain action must open the explanation panel"
+}
+if ($activeCompletionSource -notmatch "panelAnchorHandle" -or $activeCompletionSource -notmatch "AnchorHandleOverride") {
+    throw "local completion popup explain action must target the original terminal panel"
+}
+if ($completePopupSource -notmatch '\[string\]\$PanelId' -or $completePopupSource -notmatch '\$targetPanelId' -or $serverSource -notmatch 'remote-\$\{sanitizePanelId') {
+    throw "external completion popup explain action must target the same remote panel"
 }
 
 Write-Host "test: panel launcher is non-blocking"

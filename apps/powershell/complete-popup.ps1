@@ -3,6 +3,12 @@ param(
     [string]$Tools = "linux,ssh,systemd,k8s,docker,git",
     [string]$Style = "brief",
     [string]$Hint = "",
+    [string]$PanelId = "",
+    [long]$AnchorHandle = 0,
+    [int]$AnchorX = -1,
+    [int]$AnchorY = -1,
+    [int]$AnchorW = -1,
+    [int]$AnchorH = -1,
     [switch]$NoDialog,
     [switch]$WaitAi
 )
@@ -234,17 +240,19 @@ function Open-CompletionExplainPanel {
     if (-not (Test-Path -LiteralPath $panelPath)) { return $false }
     $inputFile = [System.IO.Path]::GetTempFileName()
     [System.IO.File]::WriteAllText($inputFile, [string]$Text, [System.Text.Encoding]::UTF8)
+    $targetPanelId = if ($PanelId) { $PanelId } else { "completion-popup" }
     Start-Process -FilePath "powershell" -ArgumentList @(
         "-NoProfile",
         "-ExecutionPolicy", "Bypass",
         "-File", $panelPath,
         "-InputFile", $inputFile,
         "-Mode", "explain",
-        "-PanelId", "completion-popup",
-        "-AnchorX", "-1",
-        "-AnchorY", "-1",
-        "-AnchorW", "-1",
-        "-AnchorH", "-1"
+        "-PanelId", $targetPanelId,
+        "-AnchorHandle", [string]$AnchorHandle,
+        "-AnchorX", [string]$AnchorX,
+        "-AnchorY", [string]$AnchorY,
+        "-AnchorW", [string]$AnchorW,
+        "-AnchorH", [string]$AnchorH
     ) -WindowStyle Hidden | Out-Null
     return $true
 }

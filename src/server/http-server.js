@@ -169,7 +169,7 @@ function openPanelFromServer({ mode, text, source, shell, session, tools, style 
   return { opened: true, reused: false, panelId, childPid: child.pid || 0 };
 }
 
-function runCompletionPopupFromServer({ text, tools, style, hint, noDialog, waitAi }) {
+function runCompletionPopupFromServer({ text, tools, style, hint, noDialog, waitAi, session, shell, source }) {
   if (process.platform !== "win32") {
     throw new Error("completion popup is only supported on local Windows.");
   }
@@ -180,6 +180,7 @@ function runCompletionPopupFromServer({ text, tools, style, hint, noDialog, wait
   }
 
   return new Promise((resolve, reject) => {
+    const panelId = `remote-${sanitizePanelId(session || shell || source || "ssh")}`;
     const args = [
       "-NoProfile",
       "-ExecutionPolicy", "Bypass",
@@ -187,7 +188,12 @@ function runCompletionPopupFromServer({ text, tools, style, hint, noDialog, wait
       "-Prefix", text,
       "-Tools", tools || "auto",
       "-Style", style || "brief",
-      "-Hint", hint || ""
+      "-Hint", hint || "",
+      "-PanelId", panelId,
+      "-AnchorX", "-1",
+      "-AnchorY", "-1",
+      "-AnchorW", "-1",
+      "-AnchorH", "-1"
     ];
     if (noDialog) args.push("-NoDialog");
     if (waitAi) args.push("-WaitAi");
@@ -284,6 +290,9 @@ export async function startServer({ config, port, replaceExisting = false }) {
           tools: body.tools || "auto",
           style: body.style || "brief",
           hint: body.extraInstructions || body.hint || "",
+          session: body.session || body.host || "ssh",
+          shell: body.shell || "ssh remote shell",
+          source: body.source || "ssh-readline-complete-popup",
           noDialog: Boolean(body.noDialog),
           waitAi: Boolean(body.waitAi)
         });

@@ -1178,7 +1178,16 @@ function Show-TerminalAiCompletionPopup {
 }
 
 function Show-TerminalAiPanel {
-    param([string]$InitialText = "", [string]$Mode = "explain")
+    param(
+        [string]$InitialText = "",
+        [string]$Mode = "explain",
+        [long]$AnchorHandleOverride = 0,
+        [int]$AnchorXOverride = -999999,
+        [int]$AnchorYOverride = -999999,
+        [int]$AnchorWOverride = -999999,
+        [int]$AnchorHOverride = -999999,
+        [string]$PanelIdOverride = ""
+    )
 
     $panelPath = Join-Path $script:TaihRoot "apps\powershell\panel.ps1"
     if (-not (Test-Path -LiteralPath $panelPath)) {
@@ -1188,9 +1197,13 @@ function Show-TerminalAiPanel {
 
     $inputFile = [System.IO.Path]::GetTempFileName()
     [System.IO.File]::WriteAllText($inputFile, [string]$InitialText, [System.Text.Encoding]::UTF8)
-    $rect = Get-TerminalAiForegroundRect
-    $anchorHandle = Get-TerminalAiForegroundHandle
-    $panelId = if ($anchorHandle -gt 0) { "hwnd-$anchorHandle" } else { "pid-$PID" }
+    $rect = if ($AnchorXOverride -ne -999999) {
+        [pscustomobject]@{ X = $AnchorXOverride; Y = $AnchorYOverride; W = $AnchorWOverride; H = $AnchorHOverride }
+    } else {
+        Get-TerminalAiForegroundRect
+    }
+    $anchorHandle = if ($AnchorHandleOverride -gt 0) { $AnchorHandleOverride } else { Get-TerminalAiForegroundHandle }
+    $panelId = if ($PanelIdOverride) { $PanelIdOverride } elseif ($anchorHandle -gt 0) { "hwnd-$anchorHandle" } else { "pid-$PID" }
     $panelDir = Join-Path $env:USERPROFILE ".terminal-ai-helper\panels"
     New-Item -ItemType Directory -Path $panelDir -Force | Out-Null
     $commandFile = Join-Path $panelDir "$panelId.command.json"
@@ -1712,6 +1725,9 @@ function Show-TerminalAiCompletionPopup {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 
+    $panelAnchorHandle = Get-TerminalAiForegroundHandle
+    $panelAnchorRect = Get-TerminalAiForegroundRect
+
     $bg = [System.Drawing.Color]::FromArgb(18, 18, 18)
     $surface = [System.Drawing.Color]::FromArgb(30, 30, 30)
     $fg = [System.Drawing.Color]::FromArgb(230, 230, 230)
@@ -1996,7 +2012,14 @@ function Show-TerminalAiCompletionPopup {
         if ($value.Trim()) {
             $status.Text = L '\u5df2\u6253\u5f00\u89e3\u91ca\u9762\u677f'
             $form.Close()
-            Show-TerminalAiPanel -InitialText $value -Mode explain
+            Show-TerminalAiPanel `
+                -InitialText $value `
+                -Mode explain `
+                -AnchorHandleOverride $panelAnchorHandle `
+                -AnchorXOverride $panelAnchorRect.X `
+                -AnchorYOverride $panelAnchorRect.Y `
+                -AnchorWOverride $panelAnchorRect.W `
+                -AnchorHOverride $panelAnchorRect.H
         }
     })
     $close.Add_Click({ $form.Close() })

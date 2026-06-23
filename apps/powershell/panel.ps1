@@ -282,19 +282,19 @@ function Move-PanelNearTerminal {
     param($Form)
     $screen = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
     $anchor = Get-AnchorRect
-    $dockOverlap = 10
-    if ($env:TAIH_PANEL_DOCK_OVERLAP -match '^-?\d+$') {
-        $dockOverlap = [int]$env:TAIH_PANEL_DOCK_OVERLAP
+    $dockGap = 0
+    if ($env:TAIH_PANEL_DOCK_GAP -match '^-?\d+$') {
+        $dockGap = [Math]::Max(0, [int]$env:TAIH_PANEL_DOCK_GAP)
     }
     $preferredWidth = [Math]::Min(760, [Math]::Max(560, [int]($screen.Width * 0.36)))
     $rightSpace = if ($anchor.X -ge 0) { $screen.Right - ($anchor.X + $anchor.W) } else { 0 }
     $width = if ($anchor.X -ge 0 -and $rightSpace -ge 420) {
-        [Math]::Min($preferredWidth, $rightSpace + $dockOverlap)
+        [Math]::Min($preferredWidth, [Math]::Max(420, $rightSpace - $dockGap))
     } else {
         $preferredWidth
     }
     $height = if ($anchor.H -gt 300) { [Math]::Min($anchor.H, $screen.Height) } else { [Math]::Min(820, [int]($screen.Height * 0.82)) }
-    $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W - $dockOverlap } else { $screen.Right - $width - 16 }
+    $x = if ($anchor.X -ge 0) { $anchor.X + $anchor.W + $dockGap } else { $screen.Right - $width - 16 }
     if (($x + $width) -gt $screen.Right) {
         $x = $screen.Right - $width
     }
