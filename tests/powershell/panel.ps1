@@ -230,6 +230,12 @@ if ($completePopupSource -notmatch "Get-LocalCandidates" -or $completePopupSourc
 if ($completePopupSource -notmatch "WaitAi" -or $completePopupSource -notmatch "DirectionHint" -or $serverSource -notmatch "hint: body.extraInstructions") {
     throw "HTTP completion popup must support waiting for AI and passing direction hints"
 }
+if ($completePopupSource -notmatch "ForceRefresh" -or $completePopupSource -notmatch "\\u5237\\u65b0AI") {
+    throw "external completion popup must keep cached AI suggestions by default and refresh only on demand"
+}
+if ($completePopupSource -notmatch '\$args = @\(\$script:TaihCli, "complete", "--json", "--tools", \$Toolset, "--style", \$OutputStyle\)') {
+    throw "external completion popup default AI path must not force --no-cache"
+}
 if ($profileSource -notmatch "Convert-TerminalAiCompletionPrefix" -or $completePopupSource -notmatch "Convert-CompletionPrefix") {
     throw "completion paths must correct obvious command typos before local and AI suggestions"
 }

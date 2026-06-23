@@ -1863,7 +1863,7 @@ function Show-TerminalAiCompletionPopup {
         $status.Text = L '\u4ec5\u52a0\u8f7d\u672c\u5730\u5019\u9009'
     } else {
         $aiPrefix = Convert-TerminalAiCompletionPrefix -Prefix $Prefix
-        $argumentLine = (@($script:TaihCli, "complete", "--json", "--no-cache", "--", $aiPrefix) | ForEach-Object { Q $_ }) -join " "
+        $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $aiPrefix) | ForEach-Object { Q $_ }) -join " "
         try {
             $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
         } catch {

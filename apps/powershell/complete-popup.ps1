@@ -211,14 +211,18 @@ function Get-AiCandidatesFromFile {
 }
 
 function Start-AiCompleteProcess {
-    param([string]$Text, [string]$Toolset, [string]$OutputStyle, [string]$DirectionHint, [string]$StdoutFile, [string]$StderrFile)
+    param([string]$Text, [string]$Toolset, [string]$OutputStyle, [string]$DirectionHint, [string]$StdoutFile, [string]$StderrFile, [switch]$ForceRefresh)
     $requestText = Convert-CompletionPrefix -Text $Text
-    $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--", $requestText)
+    $args = @($script:TaihCli, "complete", "--json", "--tools", $Toolset, "--style", $OutputStyle)
+    if ($ForceRefresh) { $args += "--no-cache" }
+    $args += @("--", $requestText)
     if ($DirectionHint.Trim()) {
         $script:TaihPopupInstructionsFile = [System.IO.Path]::GetTempFileName()
         $hintInstruction = "Completion direction hint: $DirectionHint`nReturn more command candidates around this direction."
         [System.IO.File]::WriteAllText($script:TaihPopupInstructionsFile, $hintInstruction, [System.Text.Encoding]::UTF8)
-        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--instructions-file", $script:TaihPopupInstructionsFile, "--", $requestText)
+        $args = @($script:TaihCli, "complete", "--json", "--tools", $Toolset, "--style", $OutputStyle)
+        if ($ForceRefresh) { $args += "--no-cache" }
+        $args += @("--instructions-file", $script:TaihPopupInstructionsFile, "--", $requestText)
     }
     $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
     return Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $StdoutFile -RedirectStandardError $StderrFile -WindowStyle Hidden -PassThru
@@ -348,6 +352,7 @@ function New-Button([string]$Text, [int]$Width = 82) {
 
 $insert = New-Button (L '\u63d2\u5165')
 $insert.BackColor = $accent
+$refresh = New-Button (L '\u5237\u65b0AI') 88
 $explain = New-Button (L '\u89e3\u91ca')
 $copy = New-Button (L '\u590d\u5236')
 $close = New-Button (L '\u53d6\u6d88')
@@ -360,6 +365,7 @@ $status.Text = L 'AI \u6b63\u5728\u540e\u53f0\u8865\u5145...'
 [void]$bottom.Controls.Add($close)
 [void]$bottom.Controls.Add($copy)
 [void]$bottom.Controls.Add($explain)
+[void]$bottom.Controls.Add($refresh)
 [void]$bottom.Controls.Add($insert)
 [void]$bottom.Controls.Add($status)
 [void]$root.Controls.Add($hint, 0, 0)
@@ -429,9 +435,19 @@ $timer.Add_Tick({
     }
 })
 
-$form.Add_Shown({
+$startAi = {
+    param([switch]$ForceRefresh)
+    if ($process -and -not $process.HasExited) {
+        try { $process.Kill() } catch {}
+    }
+    Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+    if ($script:TaihPopupInstructionsFile) {
+        Remove-Item -LiteralPath $script:TaihPopupInstructionsFile -Force -ErrorAction SilentlyContinue
+        $script:TaihPopupInstructionsFile = $null
+    }
     try {
-        $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -DirectionHint $Hint -StdoutFile $stdoutFile -StderrFile $stderrFile
+        $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -DirectionHint $Hint -StdoutFile $stdoutFile -StderrFile $stderrFile -ForceRefresh:$ForceRefresh
+        $status.Text = if ($ForceRefresh) { L 'AI \u6b63\u5728\u5237\u65b0\u5019\u9009\u5e76\u66f4\u65b0\u7f13\u5b58...' } else { L 'AI \u6b63\u5728\u8bfb\u53d6\u7f13\u5b58\u6216\u540e\u53f0\u8865\u5145...' }
         $timer.Start()
     } catch {
         $status.Text = (L 'AI \u5019\u9009\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
@@ -440,7 +456,9 @@ $form.Add_Shown({
             $form.Close()
         }
     }
-})
+}
+
+$form.Add_Shown({ & $startAi })
 
 $list.Add_SelectedIndexChanged({
     if ($list.SelectedIndex -ge 0) {
@@ -459,6 +477,7 @@ $accept = {
 
 $insert.Add_Click($accept)
 $list.Add_DoubleClick($accept)
+$refresh.Add_Click({ & $startAi -ForceRefresh })
 $copy.Add_Click({
     if ($edit.Text) {
         Set-Clipboard -Value $edit.Text
