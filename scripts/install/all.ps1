@@ -92,6 +92,7 @@ Write-Host (L '  PowerShell: Alt+/\u3001Alt+?\u3001Ctrl+Space\u3001F4')
 Write-Host "  TerminalAi.Desktop: Ctrl+Alt+P 补全当前终端输入，Ctrl+Alt+E 解释当前终端输入"
 Write-Host (L '  \u6258\u76d8\u5168\u5c40\u9009\u533a: Ctrl+Alt+/ \u89e3\u91ca\uff0cCtrl+Alt+F \u8bca\u65ad')
 Write-Host (L '  VS Code: \u9009\u4e2d\u6587\u672c\u540e\u53f3\u952e\u4f7f\u7528\u201c\u7ec8\u7aef AI \u52a9\u624b\u201d')
+Write-Host "  Uninstall: powershell -ExecutionPolicy Bypass -File `"$root\scripts\uninstall.ps1`""
 if ($warnings.Count -gt 0) {
     Write-Host ""
     Write-Host (L '\u6ce8\u610f\uff1a') -ForegroundColor Yellow

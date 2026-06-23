@@ -49,6 +49,20 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\scripts\desktop.ps1
 ```
 
+关闭 C# 桌面端：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\scripts\desktop.ps1 -Stop
+```
+
+卸载本地集成：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\scripts\uninstall.ps1
+```
+
+卸载脚本会停止 `TerminalAi.Desktop`、删除开机启动快捷方式、清理 PowerShell profile 中的加载行、清理 `.terminal-ai-helper` 缓存目录和 `TAIH_*` 用户环境变量。项目源码目录不会自动删除。
+
 桌面端快捷键：
 
 | 快捷键 | 功能 |
