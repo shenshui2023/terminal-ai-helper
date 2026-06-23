@@ -1,6 +1,7 @@
 param(
     [switch]$SkipApiKey,
     [switch]$NoTrayStartup,
+    [switch]$UseLegacyPowerShellTray,
     [switch]$NoVsCode
 )
 
@@ -62,8 +63,13 @@ try {
 }
 
 if (-not $NoTrayStartup) {
-    Step (L '\u5b89\u88c5\u6258\u76d8\u5e38\u9a7b\u5165\u53e3')
-    Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "scripts\install\tray-startup.ps1"))
+    if ($UseLegacyPowerShellTray) {
+        Step (L '\u5b89\u88c5 PowerShell \u6258\u76d8\u5e38\u9a7b\u5165\u53e3')
+        Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "scripts\install\tray-startup.ps1"))
+    } else {
+        Step "安装 TerminalAi.Desktop 桌面常驻入口"
+        Invoke-Checked -FilePath "powershell" -Arguments @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", (Join-Path $root "scripts\install\desktop-startup.ps1"), "-Build")
+    }
 }
 
 if (-not $NoVsCode) {
@@ -83,6 +89,7 @@ try {
 Write-Host ""
 Write-Host (L '\u5b89\u88c5\u5b8c\u6210\u3002\u8bf7\u91cd\u542f PowerShell / VS Code \u540e\u4f7f\u7528\uff1a') -ForegroundColor Green
 Write-Host (L '  PowerShell: Alt+/\u3001Alt+?\u3001Ctrl+Space\u3001F4')
+Write-Host "  TerminalAi.Desktop: Ctrl+Alt+P 补全当前终端输入，Ctrl+Alt+E 解释当前终端输入"
 Write-Host (L '  \u6258\u76d8\u5168\u5c40\u9009\u533a: Ctrl+Alt+/ \u89e3\u91ca\uff0cCtrl+Alt+F \u8bca\u65ad')
 Write-Host (L '  VS Code: \u9009\u4e2d\u6587\u672c\u540e\u53f3\u952e\u4f7f\u7528\u201c\u7ec8\u7aef AI \u52a9\u624b\u201d')
 if ($warnings.Count -gt 0) {

@@ -7,7 +7,8 @@
 ## 主要功能
 
 - 本地 PowerShell 里，`F4` 或 `Alt+P` 在当前终端光标附近打开智能补全候选框；`Ctrl+Space` 只在没有被输入法占用时可用。
-- SSH 标签页里，托盘全局热键 `Ctrl+Alt+P` 会直接读取本机 Windows Terminal 当前可见输入并弹出本机补全框，不需要服务器脚本或反向端口。
+- `TerminalAi.Desktop` 是新的 C# 桌面常驻入口，负责系统托盘、全局快捷键、当前终端文本读取和写回。
+- SSH 标签页里，桌面端全局热键 `Ctrl+Alt+P` 会直接读取本机 Windows Terminal 当前可见输入并弹出本机补全框，不需要服务器脚本或反向端口。
 - 候选框会先显示本地快速建议，`git`、`ssh`、`docker`、`npm`、`python`、`java`、`adb` 这类命令不用先等 API。
 - Kubernetes 常用命令也有本地候选，支持 `kube` 和 `kubectl`，例如 `kube get svc` 会直接给出 `-A`、`-n <命名空间>`、`-o wide`、`-o yaml` 等候选。
 - AI 候选会在后台补充进列表；AI 会返回多条候选命令，不要求所有命令都预存在本地。
@@ -32,15 +33,30 @@ node .\bin\taih.js doctor
 推荐一键安装全部本地入口：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\install-all.ps1
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\scripts\install\all.ps1
 ```
 
 它会依次安装/检查：
 
 - PowerShell 快捷键 profile
-- 托盘常驻程序启动项
+- TerminalAi.Desktop C# 桌面常驻程序启动项
 - VS Code 右键扩展
 - 本地脚本语法和面板 smoke test
+
+手动启动 C# 桌面端：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\scripts\desktop.ps1
+```
+
+桌面端快捷键：
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+Alt+P` | 补全当前终端输入 |
+| `Ctrl+Alt+E` | 解释当前终端输入 |
+| `Ctrl+Alt+/` | 解释选中文本 |
+| `Ctrl+Alt+F` | 诊断选中文本 |
 
 在当前 PowerShell 会话中加载快捷键：
 

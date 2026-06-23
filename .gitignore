@@ -7,3 +7,8 @@ build/
 .cache/
 .DS_Store
 Thumbs.db
+[Bb]in/
+[Oo]bj/
+!/bin/
+!/bin/taih.js
+*.user

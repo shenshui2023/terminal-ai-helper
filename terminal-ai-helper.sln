@@ -1,0 +1,30 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "apps", "apps", "{EC7DDA61-A623-433C-B354-A40FF21817F1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "desktop", "desktop", "{1AB36A74-AB40-4777-8BF0-A91E0432425A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TerminalAi.Desktop", "apps\desktop\TerminalAi.Desktop\TerminalAi.Desktop.csproj", "{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1AB36A74-AB40-4777-8BF0-A91E0432425A} = {EC7DDA61-A623-433C-B354-A40FF21817F1}
+		{69171EE1-FD7A-4E52-B74F-5C7CCDEDAEE7} = {1AB36A74-AB40-4777-8BF0-A91E0432425A}
+	EndGlobalSection
+EndGlobal
