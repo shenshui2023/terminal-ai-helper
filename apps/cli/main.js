@@ -177,7 +177,8 @@ async function main() {
         model: "TAIH_MODEL",
         "base-url": "TAIH_BASE_URL",
         timeout: "TAIH_TIMEOUT_MS",
-        tools: "TAIH_TOOLS"
+        tools: "TAIH_TOOLS",
+        proxy: "TAIH_PROXY"
       };
       const envName = map[key];
       if (!envName || !value) {
@@ -202,6 +203,7 @@ async function main() {
     console.log(`  tools: ${tools}`);
     console.log(`  apiKey: ${config.apiKey ? "found" : "missing"}`);
     console.log(`  authSource: ${config.authSource}`);
+    console.log(`  proxy: ${config.proxyUrl ? "enabled" : "direct"}`);
     if (!config.apiKey) process.exitCode = 2;
     return;
   }
@@ -211,6 +213,9 @@ async function main() {
     console.error(usage());
     process.exitCode = 2;
     return;
+  }
+  if (mode === "complete" && config.timeoutMs < 90000) {
+    config.timeoutMs = 90000;
   }
 
   const stdin = await readStdinIfPiped();

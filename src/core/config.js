@@ -40,6 +40,7 @@ export function loadConfig() {
   const userBaseUrl = readWindowsUserEnv("TAIH_BASE_URL");
   const userModel = readWindowsUserEnv("TAIH_MODEL");
   const userTimeoutMs = readWindowsUserEnv("TAIH_TIMEOUT_MS");
+  const userProxy = readWindowsUserEnv("TAIH_PROXY");
   const apiKey = process.env.OPENAI_API_KEY || userApiKey.value || auth.key;
   const authSource = process.env.OPENAI_API_KEY ? "OPENAI_API_KEY" : userApiKey.value ? userApiKey.source : auth.source;
   return {
@@ -47,8 +48,9 @@ export function loadConfig() {
     model: process.env.TAIH_MODEL || userModel.value || "gpt-5.5",
     apiKey,
     authSource,
-    timeoutMs: Number(process.env.TAIH_TIMEOUT_MS || userTimeoutMs.value || 30000),
-    reasoningEffort: process.env.TAIH_REASONING_EFFORT || ""
+    timeoutMs: Number(process.env.TAIH_TIMEOUT_MS || userTimeoutMs.value || 60000),
+    reasoningEffort: process.env.TAIH_REASONING_EFFORT || "",
+    proxyUrl: process.env.TAIH_PROXY || userProxy.value || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.ALL_PROXY || ""
   };
 }
 

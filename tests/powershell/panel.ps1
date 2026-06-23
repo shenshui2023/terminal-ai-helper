@@ -55,6 +55,17 @@ $kubeCompletions = @(Get-TerminalAiLocalCompletions -Prefix "kube get svc")
 if ($kubeCompletions.Count -lt 3 -or -not ($kubeCompletions | Where-Object { $_ -like "kube get svc -A" })) {
     throw "missing local Kubernetes service completion candidates"
 }
+$systemCompletions = @(Get-TerminalAiLocalCompletions -Prefix "system status")
+if (-not ($systemCompletions | Where-Object { $_ -like "systemctl status*" })) {
+    throw "system status should be corrected to systemctl status candidates"
+}
+if ($systemCompletions | Where-Object { $_ -like "system status*" -or $_ -like "system statussysteminfo*" }) {
+    throw "mistyped system candidates must not be recommended"
+}
+$gluedSystemCompletions = @(Get-TerminalAiLocalCompletions -Prefix "system statussysteminfo")
+if (-not ($gluedSystemCompletions | Where-Object { $_ -like "systemctl status*" })) {
+    throw "glued system status typo should still be corrected"
+}
 
 Write-Host "test: desktop terminal text extraction works"
 $samples = @(
@@ -78,9 +89,20 @@ try {
     if ($choice -notlike "ssh *$sshCandidate*") {
         throw "completion popup did not return a readable local ssh candidate: $choice"
     }
+    $systemChoice = Show-TerminalAiCompletionPopup -Prefix "system status"
+    if ($systemChoice -notlike "systemctl status*") {
+        throw "profile completion popup did not correct system status: $systemChoice"
+    }
 } finally {
     Remove-Item Env:\TAIH_TEST_NO_AI_COMPLETION -ErrorAction SilentlyContinue
     Remove-Item Env:\TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -ErrorAction SilentlyContinue
+}
+
+Write-Host "test: external completion popup corrects command typos"
+$externalPopup = powershell -NoProfile -ExecutionPolicy Bypass -File $completePopupPath -Prefix "system status" -NoDialog | Select-Object -Last 1
+$externalResult = $externalPopup | ConvertFrom-Json
+if (-not $externalResult.ok -or $externalResult.completion -notlike "systemctl status*") {
+    throw "external completion popup did not correct system status: $externalPopup"
 }
 
 Write-Host "test: AI completion schema can carry multiple candidates"
@@ -90,6 +112,9 @@ $apiSource = Get-Content -LiteralPath $apiPath -Raw
 $promptSource = Get-Content -LiteralPath $promptPath -Raw
 if ($apiSource -notmatch "completions") {
     throw "API normalization does not include completions array"
+}
+if ($apiSource -notmatch "requestViaHttpProxy" -or $apiSource -notmatch "Proxy request timed out") {
+    throw "API requests must support local HTTP proxy for desktop Clash/Verge setups"
 }
 if ($promptSource -notmatch "complete" -or $promptSource -notmatch "--help") {
     throw "prompt does not ask for multiple AI completion candidates"
@@ -119,6 +144,9 @@ if ($serverSource -notmatch '"/complete-popup"' -or $serverSource -notmatch "com
 if ($cliSource -notmatch "--replace" -or $serverSource -notmatch "replaceExistingServer") {
     throw "HTTP server must support replacing an old helper server after upgrades"
 }
+if ($cliSource -notmatch "mode === `"complete`"" -or $cliSource -notmatch "90000") {
+    throw "complete mode must have a longer minimum timeout for slow relay/model responses"
+}
 if ($serverSource -notmatch "windowsHide: false" -or $serverSource -notmatch "childPid") {
     throw "HTTP server must launch visible local Windows UI and return child pid for diagnostics"
 }
@@ -147,7 +175,7 @@ if ($profileSource -notmatch '\$process\.WaitForExit\(\)') {
 if ($profileSource -notmatch '\$explain = New-CompletionButton' -or $profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain') {
     throw "completion popup is missing the explain action"
 }
-if ($profileSource -notmatch 'Show-TerminalAiPanel -InitialText \$value -Mode explain[\s\S]{0,160}\$form\.Close\(\)') {
+if ($profileSource -notmatch '\$form\.Close\(\)[\s\S]{0,180}Show-TerminalAiPanel -InitialText \$value -Mode explain') {
     throw "completion popup explain action must close the modal popup"
 }
 if ($profileSource -notmatch '\$form\.FormBorderStyle = "None"' -or $profileSource -notmatch '\$form\.Add_Deactivate') {
@@ -201,6 +229,12 @@ if ($completePopupSource -notmatch "Get-LocalCandidates" -or $completePopupSourc
 }
 if ($completePopupSource -notmatch "WaitAi" -or $completePopupSource -notmatch "DirectionHint" -or $serverSource -notmatch "hint: body.extraInstructions") {
     throw "HTTP completion popup must support waiting for AI and passing direction hints"
+}
+if ($profileSource -notmatch "Convert-TerminalAiCompletionPrefix" -or $completePopupSource -notmatch "Convert-CompletionPrefix") {
+    throw "completion paths must correct obvious command typos before local and AI suggestions"
+}
+if ($completePopupSource -notmatch "Open-CompletionExplainPanel") {
+    throw "external completion popup explain action must open the explanation panel"
 }
 
 Write-Host "test: panel launcher is non-blocking"

@@ -1226,6 +1226,7 @@ function Show-TerminalAiPanel {
             if (Show-TerminalAiProcessWindow -ProcessId ([int]$existingPid)) {
                 return
             }
+            try { Stop-Process -Id ([int]$existingPid) -Force -ErrorAction SilentlyContinue } catch {}
             Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
         }
     }
@@ -1814,7 +1815,7 @@ function Show-TerminalAiCompletionPopup {
         if (-not $value) { return "" }
         if ($value.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) { return $value }
         if ($value -match '^\S+(\s|$)' -and $value.Contains(" ")) { return $value }
-        return $Prefix + $value
+        return $value
     }
 
     $insert = New-CompletionButton (L '\u63d2\u5165')
@@ -1861,7 +1862,8 @@ function Show-TerminalAiCompletionPopup {
     if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
         $status.Text = L '\u4ec5\u52a0\u8f7d\u672c\u5730\u5019\u9009'
     } else {
-        $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $Prefix) | ForEach-Object { Q $_ }) -join " "
+        $aiPrefix = Convert-TerminalAiCompletionPrefix -Prefix $Prefix
+        $argumentLine = (@($script:TaihCli, "complete", "--json", "--no-cache", "--", $aiPrefix) | ForEach-Object { Q $_ }) -join " "
         try {
             $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
         } catch {
@@ -1871,8 +1873,9 @@ function Show-TerminalAiCompletionPopup {
 
     $timer = New-Object System.Windows.Forms.Timer
     $timer.Interval = 180
-    if ($process) {
+    if ($true) {
         $timer.Add_Tick({
+            if (-not $process) { return }
             if (-not $process.HasExited) { return }
             $timer.Stop()
             try {
@@ -1932,10 +1935,43 @@ function Show-TerminalAiCompletionPopup {
                 }
             } finally {
                 Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+                if ($instructionsFile) {
+                    Remove-Item -LiteralPath $instructionsFile -Force -ErrorAction SilentlyContinue
+                    $instructionsFile = $null
+                }
                 try { $process.Dispose() } catch {}
+                $process = $null
             }
         })
-        $timer.Start()
+        if ($process) { $timer.Start() }
+    }
+
+    $startAi = {
+        if ($process -and -not $process.HasExited) {
+            try { $process.Kill() } catch {}
+        }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        if ($instructionsFile) {
+            Remove-Item -LiteralPath $instructionsFile -Force -ErrorAction SilentlyContinue
+            $instructionsFile = $null
+        }
+        $aiPrefix = Convert-TerminalAiCompletionPrefix -Prefix $Prefix
+        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--", $aiPrefix)
+        $hintText = ([string]$direction.Text).Trim()
+        if ($hintText) {
+            $instructionsFile = [System.IO.Path]::GetTempFileName()
+            $hintInstruction = "Completion direction hint: $hintText`nReturn more command candidates around this direction."
+            [System.IO.File]::WriteAllText($instructionsFile, $hintInstruction, [System.Text.Encoding]::UTF8)
+            $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--instructions-file", $instructionsFile, "--", $aiPrefix)
+        }
+        $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
+        try {
+            $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
+            $status.Text = if ($hintText) { (L 'AI \u6b63\u5728\u6309\u65b9\u5411\u5237\u65b0\uff1a') + $hintText } else { L 'AI \u6b63\u5728\u540e\u53f0\u8865\u5145...' }
+            $timer.Start()
+        } catch {
+            $status.Text = (L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
+        }
     }
 
     $list.Add_SelectedIndexChanged({
@@ -1958,9 +1994,9 @@ function Show-TerminalAiCompletionPopup {
     $explain.Add_Click({
         $value = [string]$edit.Text
         if ($value.Trim()) {
-            Show-TerminalAiPanel -InitialText $value -Mode explain
             $status.Text = L '\u5df2\u6253\u5f00\u89e3\u91ca\u9762\u677f'
             $form.Close()
+            Show-TerminalAiPanel -InitialText $value -Mode explain
         }
     })
     $close.Add_Click({ $form.Close() })
@@ -1995,6 +2031,84 @@ function Show-TerminalAiCompletionPopup {
 
     [void]$form.ShowDialog()
     return $script:TaihCompletionChoice
+}
+
+function Convert-TerminalAiCompletionPrefix {
+    param([string]$Prefix)
+    $value = ([string]$Prefix).Trim()
+    if (-not $value) { return "" }
+    if ($value -eq "system") { return "systemctl" }
+    if ($value -match '^system\s+(status|start|stop|restart|enable|disable|list|is-active|is-enabled)(\s+.*)?$') {
+        return 'systemctl ' + $Matches[1] + $Matches[2]
+    }
+    if ($value -match '^system\s+(status|start|stop|restart|enable|disable|list|is-active|is-enabled)\S+$') {
+        return 'systemctl ' + $Matches[1]
+    }
+    return $value
+}
+
+function Get-TerminalAiLocalCompletions {
+    param([string]$Prefix)
+
+    $text = Convert-TerminalAiCompletionPrefix -Prefix $Prefix
+    if (-not $text) { return @() }
+    $command = ($text -split '\s+', 2)[0].ToLowerInvariant()
+    $candidates = @()
+    $userName = L '\u003c\u7528\u6237\u540d\u003e'
+    $hostName = L '\u003c\u4e3b\u673a\u003e'
+    $portName = L '\u003c\u7aef\u53e3\u003e'
+    $keyPath = L '\u003c\u79c1\u94a5\u8def\u5f84\u003e'
+
+    switch ($command) {
+        "systemctl" {
+            $service = L '\u003c\u670d\u52a1\u540d\u003e'
+            $candidates = @(
+                "systemctl status $service",
+                "systemctl restart $service",
+                "systemctl start $service",
+                "systemctl stop $service",
+                "systemctl enable --now $service",
+                "systemctl list-units --type=service --state=running",
+                "systemctl daemon-reload"
+            )
+        }
+        "systeminfo" {
+            $candidates = @(
+                "hostnamectl",
+                "uname -a",
+                "cat /etc/os-release",
+                "lscpu",
+                "free -h",
+                "df -h"
+            )
+        }
+        "git" { $candidates = @("git status -sb", "git log --oneline -5", "git diff -- <file>", "git add <file>", "git commit -m `"<message>`"", "git push -u origin <branch>") }
+        "ssh" { $candidates = @("ssh $userName@$hostName", "ssh $userName@$hostName -p $portName", "ssh -i $keyPath $userName@$hostName") }
+        "docker" { $candidates = @("docker ps --format `"table {{.Names}}\t{{.Status}}\t{{.Ports}}`"", "docker logs -f <container>", "docker exec -it <container> sh", "docker compose up -d") }
+        "npm" { $candidates = @("npm install", "npm run dev", "npm run build", "npm test", "npm outdated") }
+        "python" { $candidates = @("python -m venv .venv", "python -m pip install <package>", "python -m pytest", "python <script.py>") }
+        "java" { $candidates = @("java -version", "javac <file.java>", "java -jar <file.jar>") }
+        "adb" { $candidates = @("adb devices", "adb shell", "adb logcat", "adb install <app.apk>", "adb reverse tcp:<port> tcp:<port>") }
+        { $_ -in @("kube", "kubectl") } { $candidates = @("$command get pods -A", "$command get svc -A", "$command get svc -n <namespace>", "$command get svc -o wide", "$command get svc -o yaml", "$command describe svc <service-name> -n <namespace>") }
+        "journalctl" { $candidates = @("journalctl -u <service> -n 100 --no-pager", "journalctl -u <service> -f", "journalctl -xe --no-pager") }
+        "curl" { $candidates = @("curl -I <url>", "curl -sS <url>", "curl -sS -X POST <url> -H `"Content-Type: application/json`" -d '<json>'") }
+        "ip" { $candidates = @("ip addr", "ip route", "ip route get <ip>", "ip -br addr") }
+        "ss" { $candidates = @("ss -lntp", "ss -antp", "ss -lntp | grep <port>") }
+        default {
+            if ($text.Length -ge 2) { $candidates = @("$text --help", "$text -h") }
+        }
+    }
+
+    $items = New-Object System.Collections.Generic.List[string]
+    foreach ($candidate in $candidates) {
+        if ($candidate.StartsWith($text, [System.StringComparison]::OrdinalIgnoreCase) -or $text -eq $command) {
+            [void]$items.Add($candidate)
+        }
+    }
+    if ($items.Count -eq 0 -and $candidates.Count -gt 0) {
+        foreach ($candidate in $candidates) { [void]$items.Add($candidate) }
+    }
+    return @($items | Select-Object -First 6)
 }
 
 Set-PSReadLineKeyHandler -Chord "Alt+/" -ScriptBlock { Show-TerminalAiUsage }

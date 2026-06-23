@@ -1,4 +1,147 @@
+import http from "node:http";
+import https from "node:https";
+import tls from "node:tls";
 import { responsesUrl } from "./config.js";
+
+function normalizeProxyUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return /^[a-z]+:\/\//i.test(text) ? text : `http://${text}`;
+}
+
+function proxyFor(config) {
+  const proxy = normalizeProxyUrl(config.proxyUrl);
+  if (!proxy) return null;
+  const parsed = new URL(proxy);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`Unsupported proxy protocol: ${parsed.protocol}`);
+  }
+  return parsed;
+}
+
+function collectResponse(response, onChunk) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    response.on("data", (chunk) => {
+      chunks.push(chunk);
+      if (onChunk) onChunk(chunk);
+    });
+    response.on("end", () => {
+      resolve({
+        ok: response.statusCode >= 200 && response.statusCode < 300,
+        status: response.statusCode,
+        headers: response.headers,
+        text: Buffer.concat(chunks).toString("utf8")
+      });
+    });
+    response.on("error", reject);
+  });
+}
+
+function requestViaHttpProxy({ url, proxy, headers, body, timeoutMs, onChunk }) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settleResolve = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const settleReject = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    };
+    const target = new URL(url);
+    const proxyPort = Number(proxy.port || (proxy.protocol === "https:" ? 443 : 80));
+    const connectOptions = {
+      host: proxy.hostname,
+      port: proxyPort,
+      method: "CONNECT",
+      path: `${target.hostname}:443`,
+      headers: { host: `${target.hostname}:443` }
+    };
+    if (proxy.username || proxy.password) {
+      const token = Buffer.from(`${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`).toString("base64");
+      connectOptions.headers["proxy-authorization"] = `Basic ${token}`;
+    }
+
+    let tunnelSocket;
+    const connect = (proxy.protocol === "https:" ? https : http).request(connectOptions);
+    const timer = setTimeout(() => {
+      const error = new Error("Proxy request timed out");
+      settleReject(error);
+      connect.destroy(error);
+      if (tunnelSocket) tunnelSocket.destroy(error);
+    }, timeoutMs);
+
+    connect.on("connect", (response, socket) => {
+      if (response.statusCode !== 200) {
+        socket.destroy();
+        settleReject(new Error(`Proxy CONNECT HTTP ${response.statusCode}`));
+        return;
+      }
+      tunnelSocket = socket;
+      socket.on("error", (error) => settleReject(error));
+      const request = https.request({
+        host: target.hostname,
+        servername: target.hostname,
+        path: `${target.pathname}${target.search}`,
+        method: "POST",
+        headers,
+        createConnection: () => tls.connect({ socket, servername: target.hostname }),
+        agent: false
+      }, async (apiResponse) => {
+        try {
+          const result = await collectResponse(apiResponse, onChunk);
+          settleResolve(result);
+        } catch (error) {
+          settleReject(error);
+        }
+      });
+      request.on("error", (error) => settleReject(error));
+      request.write(body);
+      request.end();
+    });
+    connect.on("error", (error) => settleReject(error));
+    connect.end();
+  });
+}
+
+async function postResponses(config, body, { stream = false, onChunk = null } = {}) {
+  const url = responsesUrl(config.baseUrl);
+  const bodyText = JSON.stringify(body);
+  const headers = {
+    "content-type": "application/json",
+    authorization: `Bearer ${config.apiKey}`,
+    "content-length": Buffer.byteLength(bodyText)
+  };
+  const proxy = proxyFor(config);
+  if (proxy) {
+    return requestViaHttpProxy({ url, proxy, headers, body: bodyText, timeoutMs: config.timeoutMs, onChunk });
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: bodyText,
+      signal: controller.signal
+    });
+    const text = await response.text();
+    return {
+      ok: response.ok,
+      status: response.status,
+      headers: Object.fromEntries(response.headers.entries()),
+      text
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function parseOutputText(data) {
   if (typeof data.output_text === "string" && data.output_text.trim()) return data.output_text;
@@ -27,8 +170,6 @@ export async function requestCommandHelp(config, prompt) {
     throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.timeoutMs);
   const body = {
     model: config.model,
     input: `${prompt.system}\n\n${prompt.user}`,
@@ -41,18 +182,9 @@ export async function requestCommandHelp(config, prompt) {
     body.reasoning = { effort };
   }
 
-  try {
-    const response = await fetch(responsesUrl(config.baseUrl), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${config.apiKey}`
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    });
-
-    const raw = await response.text();
+  {
+    const response = await postResponses(config, body);
+    const raw = response.text;
     if (!response.ok) {
       let detail = raw.slice(0, 500);
       try {
@@ -69,8 +201,6 @@ export async function requestCommandHelp(config, prompt) {
 
     const data = JSON.parse(raw);
     return normalizeResult(parseJsonObject(parseOutputText(data)));
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -79,21 +209,41 @@ export async function requestCommandHelpTextStream(config, prompt, onText) {
     throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");
   }
 
+  const body = {
+    model: config.model,
+    input: `${prompt.system}\n\n${prompt.user}`,
+    stream: true,
+    store: false
+  };
+  const proxy = proxyFor(config);
+  if (proxy) {
+    const proxyConfig = { ...config, timeoutMs: Math.max(config.timeoutMs, 120000) };
+    const response = await postResponses(proxyConfig, {
+      model: config.model,
+      input: `${prompt.system}\n\n${prompt.user}`,
+      store: false
+    });
+    if (!response.ok) {
+      throw new Error(`API HTTP ${response.status}: ${response.text.slice(0, 500)}`);
+    }
+    try {
+      const parsed = JSON.parse(response.text);
+      const text = parseOutputText(parsed);
+      if (text) onText(text);
+      return text;
+    } catch {
+      if (response.text) onText(response.text);
+      return response.text;
+    }
+  }
+
   const response = await fetch(responsesUrl(config.baseUrl), {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${config.apiKey}`
     },
-    body: JSON.stringify({
-      model: config.model,
-      input: [
-        { role: "system", content: prompt.system },
-        { role: "user", content: prompt.user }
-      ],
-      stream: true,
-      store: false
-    })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {

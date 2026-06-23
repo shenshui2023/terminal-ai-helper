@@ -53,9 +53,23 @@ function Add-Candidate {
     }
 }
 
+function Convert-CompletionPrefix {
+    param([string]$Text)
+    $value = ([string]$Text).Trim()
+    if (-not $value) { return "" }
+    if ($value -eq "system") { return "systemctl" }
+    if ($value -match '^system\s+(status|start|stop|restart|enable|disable|list|is-active|is-enabled)(\s+.*)?$') {
+        return 'systemctl ' + $Matches[1] + $Matches[2]
+    }
+    if ($value -match '^system\s+(status|start|stop|restart|enable|disable|list|is-active|is-enabled)\S+$') {
+        return 'systemctl ' + $Matches[1]
+    }
+    return $value
+}
+
 function Get-LocalCandidates {
     param([string]$Text)
-    $trimmed = ([string]$Text).Trim()
+    $trimmed = Convert-CompletionPrefix -Text $Text
     $list = New-Object System.Collections.Generic.List[string]
     if (-not $trimmed) { return @() }
     $command = ($trimmed -split '\s+', 2)[0].ToLowerInvariant()
@@ -128,10 +142,17 @@ function Get-LocalCandidates {
         "systemctl" {
             @(
                 "systemctl status <service>",
+                "systemctl start <service>",
+                "systemctl stop <service>",
                 "systemctl restart <service>",
                 "systemctl enable --now <service>",
-                "systemctl list-units --type=service --state=running"
+                "systemctl list-units --type=service --state=running",
+                "systemctl daemon-reload"
             ) | ForEach-Object { Add-WhenUseful $_ }
+        }
+        "systeminfo" {
+            @("hostnamectl", "uname -a", "cat /etc/os-release", "lscpu", "free -h", "df -h") |
+                ForEach-Object { Add-Candidate $list $_ }
         }
         "journalctl" {
             @(
@@ -191,15 +212,37 @@ function Get-AiCandidatesFromFile {
 
 function Start-AiCompleteProcess {
     param([string]$Text, [string]$Toolset, [string]$OutputStyle, [string]$DirectionHint, [string]$StdoutFile, [string]$StderrFile)
-    $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--", $Text)
+    $requestText = Convert-CompletionPrefix -Text $Text
+    $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--", $requestText)
     if ($DirectionHint.Trim()) {
         $script:TaihPopupInstructionsFile = [System.IO.Path]::GetTempFileName()
         $hintInstruction = "Completion direction hint: $DirectionHint`nReturn more command candidates around this direction."
         [System.IO.File]::WriteAllText($script:TaihPopupInstructionsFile, $hintInstruction, [System.Text.Encoding]::UTF8)
-        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--instructions-file", $script:TaihPopupInstructionsFile, "--", $Text)
+        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--instructions-file", $script:TaihPopupInstructionsFile, "--", $requestText)
     }
     $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
     return Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $StdoutFile -RedirectStandardError $StderrFile -WindowStyle Hidden -PassThru
+}
+
+function Open-CompletionExplainPanel {
+    param([string]$Text)
+    $panelPath = Join-Path $script:TaihRoot "apps\powershell\panel.ps1"
+    if (-not (Test-Path -LiteralPath $panelPath)) { return $false }
+    $inputFile = [System.IO.Path]::GetTempFileName()
+    [System.IO.File]::WriteAllText($inputFile, [string]$Text, [System.Text.Encoding]::UTF8)
+    Start-Process -FilePath "powershell" -ArgumentList @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File", $panelPath,
+        "-InputFile", $inputFile,
+        "-Mode", "explain",
+        "-PanelId", "completion-popup",
+        "-AnchorX", "-1",
+        "-AnchorY", "-1",
+        "-AnchorW", "-1",
+        "-AnchorH", "-1"
+    ) -WindowStyle Hidden | Out-Null
+    return $true
 }
 
 $local = @(Get-LocalCandidates -Text $Prefix)
@@ -425,8 +468,9 @@ $copy.Add_Click({
 $explain.Add_Click({
     $value = ([string]$edit.Text).Trim()
     if ($value) {
-        $script:choice = $value
-        $script:choiceSource = "explain"
+        [void](Open-CompletionExplainPanel -Text $value)
+        $script:choice = $null
+        $script:choiceSource = "cancelled"
         $form.Close()
     }
 })
