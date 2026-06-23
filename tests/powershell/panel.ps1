@@ -128,6 +128,9 @@ if ($sshSource -notmatch "F4 or Alt\+P" -or
     -not $sshSource.Contains('"\ep":_taih_readline_complete')) {
     throw "SSH integration must provide F4/Alt+P completion shortcuts because Ctrl+Space is often captured by IME"
 }
+if (-not $sshSource.Contains("__TAIH_ERROR__") -or -not $sshSource.Contains("local completion popup failed")) {
+    throw "SSH completion must report local popup failures instead of silently swallowing them"
+}
 $trayPath = Join-Path $root "apps\powershell\tray.ps1"
 $parseErrors = $null
 [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $trayPath -Raw), [ref]$parseErrors) | Out-Null
@@ -172,10 +175,16 @@ if ($traySource -notmatch 'Invoke-TerminalAiForegroundCommandCompletion' -or $tr
 if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F' -or $traySource -notmatch 'Ctrl\+Alt\+P' -or $traySource -notmatch 'Ctrl\+Alt\+E') {
     throw "tray should document global selected-text hotkeys in its menu"
 }
+if ($traySource -notmatch 'ExistingText \$context.Command') {
+    throw "tray completion must pass the existing command when replacing terminal input"
+}
 
 $desktopSource = Get-Content -LiteralPath $desktopTerminalPath -Raw
 if ($desktopSource -notmatch "UIAutomationClient" -or $desktopSource -notmatch "Get-TerminalAiVisibleTerminalText" -or $desktopSource -notmatch "Send-TerminalAiTextToWindow") {
     throw "desktop terminal capture should use local UI Automation and write back to the original terminal"
+}
+if ($desktopSource -match 'SendWait\("\^u"\)' -or $desktopSource -notmatch "Send-TerminalAiBackspace" -or $desktopSource -notmatch "ExistingText") {
+    throw "desktop terminal write-back must not rely on Ctrl+U; use measured backspace replacement"
 }
 
 $sshPanelSource = Get-Content -LiteralPath $sshPanelPath -Raw

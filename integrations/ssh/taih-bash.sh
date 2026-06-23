@@ -81,8 +81,12 @@ try:
         sys.stdout.write(str(data["completion"]))
     elif data.get("source") == "cancelled" or data.get("error") == "cancelled":
         sys.stdout.write("__TAIH_CANCELLED__")
-except Exception:
-    pass
+    elif data.get("error"):
+        sys.stdout.write("__TAIH_ERROR__:%s" % data.get("error"))
+    else:
+        sys.stdout.write("__TAIH_EMPTY__")
+except Exception as exc:
+    sys.stdout.write("__TAIH_ERROR__:%s" % exc)
 PY
 }
 
@@ -142,6 +146,14 @@ taih-complete-popup() {
     printf 'terminal-ai-helper: completion popup cancelled\n' >&2
     return 130
   fi
+  if [[ "$completion" == __TAIH_ERROR__:* ]]; then
+    printf 'terminal-ai-helper: local completion popup failed: %s\n' "${completion#__TAIH_ERROR__:}" >&2
+    return 1
+  fi
+  if [ "$completion" = "__TAIH_EMPTY__" ]; then
+    printf 'terminal-ai-helper: local completion popup returned no command\n' >&2
+    return 1
+  fi
   if [ -n "$completion" ]; then
     printf '%s\n' "$completion"
   else
@@ -192,8 +204,19 @@ _taih_readline_complete() {
   if [ "$completion" = "__TAIH_CANCELLED__" ]; then
     return 0
   fi
+  if [[ "$completion" == __TAIH_ERROR__:* ]]; then
+    printf '\nterminal-ai-helper: local completion popup failed: %s\n' "${completion#__TAIH_ERROR__:}" >&2
+    return 1
+  fi
+  if [ "$completion" = "__TAIH_EMPTY__" ]; then
+    completion=""
+  fi
   if [ -z "$completion" ]; then
     completion="$(_taih_post complete raw "$READLINE_LINE")"
+  fi
+  if [[ "$completion" == terminal-ai-helper\ remote\ request\ failed:* ]]; then
+    printf '\n%s\n' "$completion" >&2
+    return 1
   fi
   _taih_apply_completion "$completion"
 }

@@ -135,7 +135,21 @@ function Get-TerminalAiForegroundTerminalContext {
         Handle = $handle
         Text = $text
         Command = $command
+        CommandLength = $command.Length
         Error = $errorText
+    }
+}
+
+function Send-TerminalAiBackspace {
+    param([int]$Count)
+
+    if ($Count -le 0) { return }
+    $remaining = $Count
+    while ($remaining -gt 0) {
+        $chunk = [Math]::Min($remaining, 60)
+        [System.Windows.Forms.SendKeys]::SendWait("{BACKSPACE $chunk}")
+        Start-Sleep -Milliseconds 20
+        $remaining -= $chunk
     }
 }
 
@@ -143,6 +157,7 @@ function Send-TerminalAiTextToWindow {
     param(
         [IntPtr]$Handle,
         [string]$Text,
+        [string]$ExistingText = "",
         [switch]$ClearLine
     )
 
@@ -157,8 +172,11 @@ function Send-TerminalAiTextToWindow {
     [void][TaihDesktopWin32]::SetForegroundWindow($Handle)
     Start-Sleep -Milliseconds 120
     if ($ClearLine) {
-        [System.Windows.Forms.SendKeys]::SendWait("^u")
-        Start-Sleep -Milliseconds 80
+        [System.Windows.Forms.SendKeys]::SendWait("{END}")
+        Start-Sleep -Milliseconds 60
+        $deleteCount = if ($ExistingText) { $ExistingText.Length } else { 240 }
+        Send-TerminalAiBackspace -Count $deleteCount
+        Start-Sleep -Milliseconds 60
     }
     Set-Clipboard -Value $Text
     Start-Sleep -Milliseconds 80

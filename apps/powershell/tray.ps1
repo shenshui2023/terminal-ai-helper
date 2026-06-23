@@ -118,7 +118,7 @@ function Invoke-TerminalAiForegroundCommandCompletion {
     $choice = Show-TerminalAiCompletionPopup -Prefix $context.Command
     if (-not $choice) { return }
     try {
-        Send-TerminalAiTextToWindow -Handle $context.Handle -Text $choice -ClearLine
+        Send-TerminalAiTextToWindow -Handle $context.Handle -Text $choice -ExistingText $context.Command -ClearLine
     } catch {
         Show-TerminalAiTrayTip ((L '\u5199\u56de\u7ec8\u7aef\u5931\u8d25\uff1a') + $_.Exception.Message)
     }
