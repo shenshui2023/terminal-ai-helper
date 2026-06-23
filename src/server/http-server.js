@@ -169,7 +169,7 @@ function openPanelFromServer({ mode, text, source, shell, session, tools, style 
   return { opened: true, reused: false, panelId, childPid: child.pid || 0 };
 }
 
-function runCompletionPopupFromServer({ text, tools, style, noDialog, waitAi }) {
+function runCompletionPopupFromServer({ text, tools, style, hint, noDialog, waitAi }) {
   if (process.platform !== "win32") {
     throw new Error("completion popup is only supported on local Windows.");
   }
@@ -186,7 +186,8 @@ function runCompletionPopupFromServer({ text, tools, style, noDialog, waitAi }) 
       "-File", popupScript,
       "-Prefix", text,
       "-Tools", tools || "auto",
-      "-Style", style || "brief"
+      "-Style", style || "brief",
+      "-Hint", hint || ""
     ];
     if (noDialog) args.push("-NoDialog");
     if (waitAi) args.push("-WaitAi");
@@ -282,6 +283,7 @@ export async function startServer({ config, port, replaceExisting = false }) {
           text: requestText,
           tools: body.tools || "auto",
           style: body.style || "brief",
+          hint: body.extraInstructions || body.hint || "",
           noDialog: Boolean(body.noDialog),
           waitAi: Boolean(body.waitAi)
         });

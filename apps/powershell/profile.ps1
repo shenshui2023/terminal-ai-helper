@@ -1594,22 +1594,39 @@ function Show-TerminalAiCompletionPopup {
     $stdoutFile = [System.IO.Path]::GetTempFileName()
     $stderrFile = [System.IO.Path]::GetTempFileName()
     $process = $null
+    $instructionsFile = $null
 
-    if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
-        $status.Text = L '\u4ec5\u52a0\u8f7d\u672c\u5730\u5019\u9009'
-    } else {
-        $argumentLine = (@($script:TaihCli, "complete", "--json", "--", $Prefix) | ForEach-Object { Q $_ }) -join " "
+    $startAi = {
+        if ($process -and -not $process.HasExited) {
+            try { $process.Kill() } catch {}
+        }
+        Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        if ($instructionsFile) {
+            Remove-Item -LiteralPath $instructionsFile -Force -ErrorAction SilentlyContinue
+            $instructionsFile = $null
+        }
+        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--", $Prefix)
+        $hintText = ([string]$direction.Text).Trim()
+        if ($hintText) {
+            $instructionsFile = [System.IO.Path]::GetTempFileName()
+            $hintInstruction = "Completion direction hint: $hintText`nReturn more command candidates around this direction."
+            [System.IO.File]::WriteAllText($instructionsFile, $hintInstruction, [System.Text.Encoding]::UTF8)
+            $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--instructions-file", $instructionsFile, "--", $Prefix)
+        }
+        $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
         try {
             $process = Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile -WindowStyle Hidden -PassThru
+            $status.Text = if ($hintText) { (L 'AI \u6b63\u5728\u6309\u65b9\u5411\u5237\u65b0\uff1a') + $hintText } else { L 'AI \u6b63\u5728\u5237\u65b0\u5019\u9009\u5e76\u66f4\u65b0\u7f13\u5b58...' }
+            $timer.Start()
         } catch {
-            $status.Text = L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff0c\u53ef\u5148\u7528\u672c\u5730\u5019\u9009'
+            $status.Text = (L 'AI \u8865\u5145\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
         }
     }
 
     $timer = New-Object System.Windows.Forms.Timer
     $timer.Interval = 180
-    if ($process) {
-        $timer.Add_Tick({
+    $timer.Add_Tick({
+            if (-not $process) { return }
             if (-not $process.HasExited) { return }
             $timer.Stop()
             try {
@@ -1634,10 +1651,18 @@ function Show-TerminalAiCompletionPopup {
                 $status.Text = L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25'
             } finally {
                 Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+                if ($instructionsFile) {
+                    Remove-Item -LiteralPath $instructionsFile -Force -ErrorAction SilentlyContinue
+                    $instructionsFile = $null
+                }
                 try { $process.Dispose() } catch {}
+                $process = $null
             }
         })
-        $timer.Start()
+    if ($env:TAIH_TEST_NO_AI_COMPLETION -eq "1") {
+        $status.Text = L '\u4ec5\u52a0\u8f7d\u672c\u5730\u5019\u9009'
+    } else {
+        & $startAi
     }
 
     $list.Add_SelectedIndexChanged({
@@ -1700,7 +1725,7 @@ function Show-TerminalAiCompletionPopup {
     $form.TopMost = $true
     $form.BackColor = $bg
     $form.ForeColor = $fg
-    $form.Size = New-Object System.Drawing.Size(720, 236)
+    $form.Size = New-Object System.Drawing.Size(760, 278)
     $form.KeyPreview = $true
 
     $point = Get-TerminalAiCursorScreenPoint
@@ -1711,10 +1736,11 @@ function Show-TerminalAiCompletionPopup {
 
     $root = New-Object System.Windows.Forms.TableLayoutPanel
     $root.Dock = "Fill"
-    $root.RowCount = 4
+    $root.RowCount = 5
     $root.ColumnCount = 1
     $root.Padding = New-Object System.Windows.Forms.Padding(6)
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 20)))
+    [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 28)))
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 30)))
     [void]$root.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Absolute, 32)))
@@ -1724,6 +1750,32 @@ function Show-TerminalAiCompletionPopup {
     $hint.Dock = "Fill"
     $hint.ForeColor = $muted
     $hint.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+
+    $directionPanel = New-Object System.Windows.Forms.TableLayoutPanel
+    $directionPanel.Dock = "Fill"
+    $directionPanel.ColumnCount = 2
+    $directionPanel.RowCount = 1
+    $directionPanel.BackColor = $bg
+    [void]$directionPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Absolute, 74)))
+    [void]$directionPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 100)))
+
+    $directionLabel = New-Object System.Windows.Forms.Label
+    $directionLabel.Text = L '\u65b9\u5411\u63d0\u793a'
+    $directionLabel.Dock = "Fill"
+    $directionLabel.ForeColor = $muted
+    $directionLabel.TextAlign = "MiddleLeft"
+    $directionLabel.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+
+    $direction = New-Object System.Windows.Forms.TextBox
+    $direction.Dock = "Fill"
+    $direction.BackColor = [System.Drawing.Color]::Black
+    $direction.ForeColor = $fg
+    $direction.BorderStyle = "None"
+    $direction.Font = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+    $direction.Text = [string]$env:TAIH_COMPLETION_HINT
+
+    [void]$directionPanel.Controls.Add($directionLabel, 0, 0)
+    [void]$directionPanel.Controls.Add($direction, 1, 0)
 
     $list = New-Object System.Windows.Forms.ListBox
     $list.Dock = "Fill"
@@ -1767,6 +1819,8 @@ function Show-TerminalAiCompletionPopup {
 
     $insert = New-CompletionButton (L '\u63d2\u5165')
     $insert.BackColor = $accent
+    $refresh = New-CompletionButton (L '\u5237\u65b0AI')
+    $refresh.Width = 86
     $copy = New-CompletionButton (L '\u590d\u5236')
     $explain = New-CompletionButton (L '\u89e3\u91ca')
     $close = New-CompletionButton (L '\u00d7')
@@ -1780,12 +1834,14 @@ function Show-TerminalAiCompletionPopup {
     [void]$bottom.Controls.Add($close)
     [void]$bottom.Controls.Add($copy)
     [void]$bottom.Controls.Add($explain)
+    [void]$bottom.Controls.Add($refresh)
     [void]$bottom.Controls.Add($insert)
     [void]$bottom.Controls.Add($status)
     [void]$root.Controls.Add($hint, 0, 0)
-    [void]$root.Controls.Add($list, 0, 1)
-    [void]$root.Controls.Add($edit, 0, 2)
-    [void]$root.Controls.Add($bottom, 0, 3)
+    [void]$root.Controls.Add($directionPanel, 0, 1)
+    [void]$root.Controls.Add($list, 0, 2)
+    [void]$root.Controls.Add($edit, 0, 3)
+    [void]$root.Controls.Add($bottom, 0, 4)
     [void]$form.Controls.Add($root)
 
     foreach ($item in (Get-TerminalAiLocalCompletions -Prefix $Prefix)) {
@@ -1898,6 +1954,7 @@ function Show-TerminalAiCompletionPopup {
     $insert.Add_Click($accept)
     $list.Add_DoubleClick($accept)
     $copy.Add_Click({ if ($edit.Text) { Set-Clipboard -Value $edit.Text; $status.Text = L '\u5df2\u590d\u5236' } })
+    $refresh.Add_Click({ & $startAi })
     $explain.Add_Click({
         $value = [string]$edit.Text
         if ($value.Trim()) {
@@ -1924,6 +1981,7 @@ function Show-TerminalAiCompletionPopup {
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
         Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        if ($instructionsFile) { Remove-Item -LiteralPath $instructionsFile -Force -ErrorAction SilentlyContinue }
     })
 
     if ($env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -eq "1") {

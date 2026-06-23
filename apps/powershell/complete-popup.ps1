@@ -2,6 +2,7 @@ param(
     [string]$Prefix = "",
     [string]$Tools = "linux,ssh,systemd,k8s,docker,git",
     [string]$Style = "brief",
+    [string]$Hint = "",
     [switch]$NoDialog,
     [switch]$WaitAi
 )
@@ -189,8 +190,14 @@ function Get-AiCandidatesFromFile {
 }
 
 function Start-AiCompleteProcess {
-    param([string]$Text, [string]$Toolset, [string]$OutputStyle, [string]$StdoutFile, [string]$StderrFile)
+    param([string]$Text, [string]$Toolset, [string]$OutputStyle, [string]$DirectionHint, [string]$StdoutFile, [string]$StderrFile)
     $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--", $Text)
+    if ($DirectionHint.Trim()) {
+        $script:TaihPopupInstructionsFile = [System.IO.Path]::GetTempFileName()
+        $hintInstruction = "Completion direction hint: $DirectionHint`nReturn more command candidates around this direction."
+        [System.IO.File]::WriteAllText($script:TaihPopupInstructionsFile, $hintInstruction, [System.Text.Encoding]::UTF8)
+        $args = @($script:TaihCli, "complete", "--json", "--no-cache", "--tools", $Toolset, "--style", $OutputStyle, "--instructions-file", $script:TaihPopupInstructionsFile, "--", $Text)
+    }
     $argumentLine = ($args | ForEach-Object { Q $_ }) -join " "
     return Start-Process -FilePath "node" -ArgumentList $argumentLine -RedirectStandardOutput $StdoutFile -RedirectStandardError $StderrFile -WindowStyle Hidden -PassThru
 }
@@ -198,6 +205,31 @@ function Start-AiCompleteProcess {
 $local = @(Get-LocalCandidates -Text $Prefix)
 if ($NoDialog) {
     $choice = if ($local.Count -gt 0) { [string]$local[0] } else { $Prefix }
+    if ($WaitAi) {
+        $stdout = [System.IO.Path]::GetTempFileName()
+        $stderr = [System.IO.Path]::GetTempFileName()
+        $script:TaihPopupInstructionsFile = $null
+        $aiProcess = $null
+        try {
+            $aiProcess = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -DirectionHint $Hint -StdoutFile $stdout -StderrFile $stderr
+            $aiProcess.WaitForExit()
+            $items = @(Get-AiCandidatesFromFile -StdoutFile $stdout)
+            if ($items.Count -gt 0) {
+                Write-Result -Ok $true -Completion ([string]$items[0]) -Source "ai"
+                exit 0
+            }
+            $err = ""
+            try { $err = [System.IO.File]::ReadAllText($stderr, [System.Text.Encoding]::UTF8).Trim() } catch {}
+            if ($aiProcess.ExitCode -ne 0) {
+                Write-Result -Ok $false -Completion $choice -Source "local" -ErrorText $err
+                exit 1
+            }
+        } finally {
+            Remove-Item -LiteralPath $stdout, $stderr -Force -ErrorAction SilentlyContinue
+            if ($script:TaihPopupInstructionsFile) { Remove-Item -LiteralPath $script:TaihPopupInstructionsFile -Force -ErrorAction SilentlyContinue }
+            if ($aiProcess) { try { $aiProcess.Dispose() } catch {} }
+        }
+    }
     Write-Result -Ok $true -Completion $choice -Source "local"
     exit 0
 }
@@ -303,6 +335,7 @@ $script:choiceSource = "local"
 $stdoutFile = [System.IO.Path]::GetTempFileName()
 $stderrFile = [System.IO.Path]::GetTempFileName()
 $process = $null
+$script:TaihPopupInstructionsFile = $null
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 180
@@ -347,6 +380,7 @@ $timer.Add_Tick({
         }
     } finally {
         Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+        if ($script:TaihPopupInstructionsFile) { Remove-Item -LiteralPath $script:TaihPopupInstructionsFile -Force -ErrorAction SilentlyContinue }
         try { $process.Dispose() } catch {}
         $process = $null
     }
@@ -354,7 +388,7 @@ $timer.Add_Tick({
 
 $form.Add_Shown({
     try {
-        $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -StdoutFile $stdoutFile -StderrFile $stderrFile
+        $process = Start-AiCompleteProcess -Text $Prefix -Toolset $Tools -OutputStyle $Style -DirectionHint $Hint -StdoutFile $stdoutFile -StderrFile $stderrFile
         $timer.Start()
     } catch {
         $status.Text = (L 'AI \u5019\u9009\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
@@ -409,6 +443,7 @@ $form.Add_FormClosed({
     try { $timer.Stop(); $timer.Dispose() } catch {}
     if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
     Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
+    if ($script:TaihPopupInstructionsFile) { Remove-Item -LiteralPath $script:TaihPopupInstructionsFile -Force -ErrorAction SilentlyContinue }
 })
 
 [void]$form.ShowDialog()

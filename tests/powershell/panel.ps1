@@ -156,6 +156,9 @@ if ($profileSource -notmatch '\$form\.FormBorderStyle = "None"' -or $profileSour
 if ($profileSource -notmatch 'if \(\$added -gt 0\)' -or $profileSource -notmatch 'exit=\$\(\$process\.ExitCode\)') {
     throw "completion popup should prefer parsed AI candidates before reporting process errors"
 }
+if ($profileSource -notmatch '--no-cache' -or $profileSource -notmatch '\\u5237\\u65b0AI' -or $profileSource -notmatch 'Completion direction hint') {
+    throw "completion popup must support refreshing AI candidates, updating cache, and direction hints"
+}
 
 $panelSource = Get-Content -LiteralPath $panelPath -Raw
 if ($panelSource -notmatch '\$form\.FormBorderStyle = "None"') {
@@ -195,6 +198,9 @@ if ($sshPanelSource -notmatch "Build-SshArguments" -or $sshPanelSource -notmatch
 $completePopupSource = Get-Content -LiteralPath $completePopupPath -Raw
 if ($completePopupSource -notmatch "Get-LocalCandidates" -or $completePopupSource -notmatch "Start-AiCompleteProcess" -or $completePopupSource -notmatch "ConvertTo-Json") {
     throw "completion popup must provide local candidates, AI candidates, and JSON output"
+}
+if ($completePopupSource -notmatch "WaitAi" -or $completePopupSource -notmatch "DirectionHint" -or $serverSource -notmatch "hint: body.extraInstructions") {
+    throw "HTTP completion popup must support waiting for AI and passing direction hints"
 }
 
 Write-Host "test: panel launcher is non-blocking"
