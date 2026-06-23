@@ -210,10 +210,10 @@ $completeTerminal.Add_Click({ Invoke-TerminalAiForegroundCommandCompletion })
 
 [void]$menu.Items.Add("-")
 
-$startServer = $menu.Items.Add((L '\u542f\u52a8 SSH \u8f85\u52a9\u670d\u52a1'))
+$startServer = $menu.Items.Add((L '\u53ef\u9009\uff1a\u542f\u52a8\u8fdc\u7aef readline \u670d\u52a1'))
 $startServer.Add_Click({ Start-TerminalAiServer })
 
-$stopServer = $menu.Items.Add((L '\u505c\u6b62 SSH \u8f85\u52a9\u670d\u52a1'))
+$stopServer = $menu.Items.Add((L '\u53ef\u9009\uff1a\u505c\u6b62\u8fdc\u7aef readline \u670d\u52a1'))
 $stopServer.Add_Click({ Stop-TerminalAiServer })
 
 [void]$menu.Items.Add("-")

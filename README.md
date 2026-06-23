@@ -85,7 +85,9 @@ node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js doctor
 | `Alt+/` | 解释选中文本或当前命令 |
 | `Alt+?` | 打开管理面板，很多键盘上 `Alt+Shift+/` 会被识别为 `Alt+?` |
 | `F4` | 推荐：打开智能补全候选框 |
-| `Alt+P` | SSH 远端推荐：打开本机智能补全候选框 |
+| `Alt+P` | 本地 PowerShell 备用：打开智能补全候选框 |
+| `Ctrl+Alt+P` | SSH 标签页推荐：托盘读取当前可见输入，在本机补全并写回 |
+| `Ctrl+Alt+E` | SSH 标签页推荐：托盘读取当前可见输入，在本机解释 |
 | `Ctrl+Space` | 可选：未被输入法占用时打开智能补全候选框 |
 | `Ctrl+Shift+Space` | 备用：当 `Ctrl+Space` 被输入法或终端抢占时使用 |
 | `Alt+C` | 复制 AI 补全 |
@@ -101,7 +103,7 @@ taih-keys
 taih-what-key
 ```
 
-`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、中文输入法、远端 SSH 会话都可能抢占 `Ctrl+Space`。你的机器上 `Ctrl+Space` 是中英文输入法切换，所以优先用 `F4`；SSH 远端优先用 `F4` 或 `Alt+P`。
+`taih-what-key` 会让 PSReadLine 显示终端实际收到的按键名。Windows Terminal、中文输入法、远端 SSH 会话都可能抢占 `Ctrl+Space`。你的机器上 `Ctrl+Space` 是中英文输入法切换，所以本地 PowerShell 优先用 `F4` 或 `Alt+P`；SSH 标签页优先用托盘全局热键 `Ctrl+Alt+P` 和 `Ctrl+Alt+E`。
 
 ## 常用命令
 
@@ -127,7 +129,7 @@ taih-panel-reset              # 清理卡住的面板状态
 | 托盘当前终端输入 | Windows Terminal、SSH 标签页当前正在输入的命令 | 启动 `powershell\tray.ps1`，在 SSH 标签页里按 `Ctrl+Alt+P` 补全，按 `Ctrl+Alt+E` 解释 |
 | 托盘全局选区 | Windows Terminal、SSH、任意窗口选中文本 | 启动 `powershell\tray.ps1`，选中文本后按 `Ctrl+Alt+/` |
 | VS Code 右键 | 解释代码块、命令片段、日志片段 | 安装扩展后，选中文本右键使用“终端 AI 助手” |
-| SSH 反向隧道 | 可选增强：远端 shell 内结构化读取 readline 当前行 | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `integrations/ssh/taih-bash.sh` |
+| SSH 反向隧道 | 高级备用：只有本机无法读取终端可见文本时才考虑 | 不作为日常推荐路径 |
 
 Windows Terminal 没有稳定的第三方右键菜单扩展接口，所以项目提供托盘全局热键和 actions 配置说明，见：
 
@@ -296,7 +298,7 @@ kube get svc
 | `Ctrl+Alt+/` | 解释鼠标选中的终端文本 |
 | `Ctrl+Alt+F` | 诊断鼠标选中的终端文本 |
 
-如果某个终端版本没有向 Windows 暴露可访问文本，`Ctrl+Alt+P/E` 可能读不到当前输入；这时退回到鼠标选中文本的 `Ctrl+Alt+/`，或使用下面的 SSH 反向隧道增强。
+如果某个终端版本没有向 Windows 暴露可访问文本，`Ctrl+Alt+P/E` 可能读不到当前输入；这时优先退回到鼠标选中文本的 `Ctrl+Alt+/` 或 `Ctrl+Alt+F`。日常使用不要先去服务器加载脚本。
 
 ### 方式二：本地 SSH 远端控制面板
 
@@ -345,9 +347,11 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 
 注意：如果没有选中文本，`Ctrl+C` 在终端里可能会被远端 shell 当作中断，所以使用前请先选中文本。
 
-### 方式四：远端 bash 快捷键（可选增强）
+### 方式四：远端 bash 快捷键（高级备用，不推荐日常使用）
 
-如果本机 UI Automation 读不到当前输入，或者你想要远端 readline 级别的结构化当前行，可以使用远端 bash 集成，让远端 readline 把当前命令通过反向隧道发回本机：
+这不是 SSH 标签页的主方案。只有在本机 UI Automation 读不到当前输入，并且你明确需要远端 bash/readline 级别的当前行时，才考虑这个方案。正常情况下，直接用本机托盘 `Ctrl+Alt+P`/`Ctrl+Alt+E` 读取 Windows Terminal 当前可见文本即可。
+
+高级备用方案会让远端 readline 把当前命令通过反向隧道发回本机：
 
 ```powershell
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888 --replace
