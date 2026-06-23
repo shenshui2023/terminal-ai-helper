@@ -8,11 +8,12 @@ $profilePath = Join-Path $root "apps\powershell\profile.ps1"
 $panelPath = Join-Path $root "apps\powershell\panel.ps1"
 $completePopupPath = Join-Path $root "apps\powershell\complete-popup.ps1"
 $sshPanelPath = Join-Path $root "apps\powershell\ssh-panel.ps1"
+$desktopTerminalPath = Join-Path $root "apps\powershell\desktop-terminal.ps1"
 $trayInstallPath = Join-Path $root "scripts\install\tray-startup.ps1"
 
 Write-Host "test: parsing PowerShell profile"
 $parseErrors = $null
-foreach ($path in @($profilePath, $panelPath, $completePopupPath, $sshPanelPath, $trayInstallPath)) {
+foreach ($path in @($profilePath, $panelPath, $completePopupPath, $sshPanelPath, $desktopTerminalPath, $trayInstallPath)) {
     $parseErrors = $null
     [System.Management.Automation.PSParser]::Tokenize((Get-Content -LiteralPath $path -Raw), [ref]$parseErrors) | Out-Null
     if ($parseErrors) {
@@ -23,6 +24,7 @@ foreach ($path in @($profilePath, $panelPath, $completePopupPath, $sshPanelPath,
 
 Write-Host "test: loading profile"
 . $profilePath
+. $desktopTerminalPath
 
 Add-Type -AssemblyName System.Windows.Forms
 
@@ -52,6 +54,20 @@ if (-not ($sshCompletions | Where-Object { $_ -like "ssh *$sshCandidate*" })) {
 $kubeCompletions = @(Get-TerminalAiLocalCompletions -Prefix "kube get svc")
 if ($kubeCompletions.Count -lt 3 -or -not ($kubeCompletions | Where-Object { $_ -like "kube get svc -A" })) {
     throw "missing local Kubernetes service completion candidates"
+}
+
+Write-Host "test: desktop terminal text extraction works"
+$samples = @(
+    @{ Text = "Microsoft Windows`r`n(base) PS C:\Users\86155> kube get svc"; Expected = "kube get svc" },
+    @{ Text = "Welcome`n[root@host ~]# systemctl status xray"; Expected = "systemctl status xray" },
+    @{ Text = "root@host:/var/log# journalctl -u xray -n 50"; Expected = "journalctl -u xray -n 50" },
+    @{ Text = "C:\Users\86155>ssh root@us-vpn"; Expected = "ssh root@us-vpn" }
+)
+foreach ($sample in $samples) {
+    $actual = Get-TerminalAiCommandFromScreenText -Text $sample.Text
+    if ($actual -ne $sample.Expected) {
+        throw "desktop terminal extraction failed: expected='$($sample.Expected)' actual='$actual'"
+    }
 }
 
 Write-Host "test: completion popup can render local candidates without API"
@@ -150,8 +166,16 @@ $traySource = Get-Content -LiteralPath $trayPath -Raw
 if ($traySource -notmatch 'RegisterHotKey' -or $traySource -notmatch 'Invoke-TerminalAiSelectedTextPanel') {
     throw "tray should provide global selected-text hotkeys for SSH terminals"
 }
-if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F') {
+if ($traySource -notmatch 'Invoke-TerminalAiForegroundCommandCompletion' -or $traySource -notmatch 'Get-TerminalAiForegroundTerminalContext') {
+    throw "tray should read the current local terminal text without requiring an SSH reverse tunnel"
+}
+if ($traySource -notmatch 'Ctrl\+Alt\+/' -or $traySource -notmatch 'Ctrl\+Alt\+F' -or $traySource -notmatch 'Ctrl\+Alt\+P' -or $traySource -notmatch 'Ctrl\+Alt\+E') {
     throw "tray should document global selected-text hotkeys in its menu"
+}
+
+$desktopSource = Get-Content -LiteralPath $desktopTerminalPath -Raw
+if ($desktopSource -notmatch "UIAutomationClient" -or $desktopSource -notmatch "Get-TerminalAiVisibleTerminalText" -or $desktopSource -notmatch "Send-TerminalAiTextToWindow") {
+    throw "desktop terminal capture should use local UI Automation and write back to the original terminal"
 }
 
 $sshPanelSource = Get-Content -LiteralPath $sshPanelPath -Raw

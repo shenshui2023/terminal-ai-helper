@@ -12,6 +12,7 @@ if (-not $ProfileScript) {
 }
 
 . $ProfileScript
+. (Join-Path $script:TaihRoot "apps\powershell\desktop-terminal.ps1")
 
 $script:TaihServerProcess = $null
 $script:TaihHotKeyForm = $null
@@ -49,8 +50,12 @@ $MOD_ALT = 0x0001
 $MOD_CONTROL = 0x0002
 $VK_OEM_2 = 0xBF
 $VK_F = 0x46
+$VK_E = 0x45
+$VK_P = 0x50
 $HOTKEY_EXPLAIN_SELECTION = 101
 $HOTKEY_FIX_SELECTION = 102
+$HOTKEY_EXPLAIN_TERMINAL = 103
+$HOTKEY_COMPLETE_TERMINAL = 104
 
 function Show-TerminalAiTrayTip {
     param([string]$Text)
@@ -85,6 +90,40 @@ function Invoke-TerminalAiSelectedTextPanel {
     Show-TerminalAiPanel -InitialText $text -Mode $Mode
 }
 
+function Get-TerminalAiForegroundCommandOrNotify {
+    $context = Get-TerminalAiForegroundTerminalContext
+    if (-not $context.Command) {
+        $message = L '\u672a\u80fd\u4ece\u5f53\u524d\u7ec8\u7aef\u7a97\u53e3\u8bfb\u5230\u6b63\u5728\u8f93\u5165\u7684\u547d\u4ee4\u3002\u8bf7\u70b9\u56de Windows Terminal \u540e\u91cd\u8bd5\uff1b\u5982\u7ec8\u7aef\u4e0d\u66b4\u9732\u53ef\u8bbf\u95ee\u6587\u672c\uff0c\u8bf7\u6539\u7528\u9f20\u6807\u9009\u4e2d\u6587\u672c\u7684 Ctrl+Alt+/\u3002'
+        if ($context.Error) { $message = $message + " " + $context.Error }
+        Show-TerminalAiTrayTip $message
+        return $null
+    }
+    return $context
+}
+
+function Invoke-TerminalAiForegroundCommandPanel {
+    param(
+        [ValidateSet("explain", "fix")]
+        [string]$Mode = "explain"
+    )
+
+    $context = Get-TerminalAiForegroundCommandOrNotify
+    if (-not $context) { return }
+    Show-TerminalAiPanel -InitialText $context.Command -Mode $Mode
+}
+
+function Invoke-TerminalAiForegroundCommandCompletion {
+    $context = Get-TerminalAiForegroundCommandOrNotify
+    if (-not $context) { return }
+    $choice = Show-TerminalAiCompletionPopup -Prefix $context.Command
+    if (-not $choice) { return }
+    try {
+        Send-TerminalAiTextToWindow -Handle $context.Handle -Text $choice -ClearLine
+    } catch {
+        Show-TerminalAiTrayTip ((L '\u5199\u56de\u7ec8\u7aef\u5931\u8d25\uff1a') + $_.Exception.Message)
+    }
+}
+
 function Register-TerminalAiGlobalHotKeys {
     $script:TaihHotKeyForm = New-Object TaihHotKeyForm
     $script:TaihHotKeyForm.ShowInTaskbar = $false
@@ -99,17 +138,23 @@ function Register-TerminalAiGlobalHotKeys {
         switch ($eventArgs.Id) {
             $HOTKEY_EXPLAIN_SELECTION { Invoke-TerminalAiSelectedTextPanel -Mode explain }
             $HOTKEY_FIX_SELECTION { Invoke-TerminalAiSelectedTextPanel -Mode fix }
+            $HOTKEY_EXPLAIN_TERMINAL { Invoke-TerminalAiForegroundCommandPanel -Mode explain }
+            $HOTKEY_COMPLETE_TERMINAL { Invoke-TerminalAiForegroundCommandCompletion }
         }
     })
     [void]$script:TaihHotKeyForm.CreateControl()
     [void][TaihHotKeyNative]::RegisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_EXPLAIN_SELECTION, ($MOD_CONTROL -bor $MOD_ALT), $VK_OEM_2)
     [void][TaihHotKeyNative]::RegisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_FIX_SELECTION, ($MOD_CONTROL -bor $MOD_ALT), $VK_F)
+    [void][TaihHotKeyNative]::RegisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_EXPLAIN_TERMINAL, ($MOD_CONTROL -bor $MOD_ALT), $VK_E)
+    [void][TaihHotKeyNative]::RegisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_COMPLETE_TERMINAL, ($MOD_CONTROL -bor $MOD_ALT), $VK_P)
 }
 
 function Unregister-TerminalAiGlobalHotKeys {
     if ($script:TaihHotKeyForm) {
         [void][TaihHotKeyNative]::UnregisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_EXPLAIN_SELECTION)
         [void][TaihHotKeyNative]::UnregisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_FIX_SELECTION)
+        [void][TaihHotKeyNative]::UnregisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_EXPLAIN_TERMINAL)
+        [void][TaihHotKeyNative]::UnregisterHotKey($script:TaihHotKeyForm.Handle, $HOTKEY_COMPLETE_TERMINAL)
         try { $script:TaihHotKeyForm.Close() } catch {}
         try { $script:TaihHotKeyForm.Dispose() } catch {}
         $script:TaihHotKeyForm = $null
@@ -157,6 +202,14 @@ $fixSelection.Add_Click({ Invoke-TerminalAiSelectedTextPanel -Mode fix })
 
 [void]$menu.Items.Add("-")
 
+$explainTerminal = $menu.Items.Add((L '\u89e3\u91ca\u5f53\u524d\u7ec8\u7aef\u8f93\u5165\uff08Ctrl+Alt+E\uff09'))
+$explainTerminal.Add_Click({ Invoke-TerminalAiForegroundCommandPanel -Mode explain })
+
+$completeTerminal = $menu.Items.Add((L '\u8865\u5168\u5f53\u524d\u7ec8\u7aef\u8f93\u5165\uff08Ctrl+Alt+P\uff09'))
+$completeTerminal.Add_Click({ Invoke-TerminalAiForegroundCommandCompletion })
+
+[void]$menu.Items.Add("-")
+
 $startServer = $menu.Items.Add((L '\u542f\u52a8 SSH \u8f85\u52a9\u670d\u52a1'))
 $startServer.Add_Click({ Start-TerminalAiServer })
 
@@ -182,6 +235,6 @@ $notify.Visible = $true
 $notify.Add_DoubleClick({ Show-TerminalAiPanel })
 
 Register-TerminalAiGlobalHotKeys
-Show-TerminalAiTrayTip (L 'Ctrl+Alt+/ \u89e3\u91ca\u9009\u4e2d\u6587\u672c\uff1bCtrl+Alt+F \u8bca\u65ad\u9009\u4e2d\u6587\u672c\u3002SSH \u7ec8\u7aef\u4e2d\u5148\u7528\u9f20\u6807\u9009\u4e2d\u5185\u5bb9\u3002')
+Show-TerminalAiTrayTip (L 'Ctrl+Alt+P \u8865\u5168\u5f53\u524d\u7ec8\u7aef\u8f93\u5165\uff1bCtrl+Alt+E \u89e3\u91ca\u5f53\u524d\u8f93\u5165\uff1bCtrl+Alt+/ \u89e3\u91ca\u9009\u4e2d\u6587\u672c\u3002')
 
 [System.Windows.Forms.Application]::Run($script:TaihHotKeyForm)

@@ -6,7 +6,8 @@
 
 ## 主要功能
 
-- `F4` 或 `Alt+P` 在当前终端光标附近打开智能补全候选框；`Ctrl+Space` 只在没有被输入法占用时可用。
+- 本地 PowerShell 里，`F4` 或 `Alt+P` 在当前终端光标附近打开智能补全候选框；`Ctrl+Space` 只在没有被输入法占用时可用。
+- SSH 标签页里，托盘全局热键 `Ctrl+Alt+P` 会直接读取本机 Windows Terminal 当前可见输入并弹出本机补全框，不需要服务器脚本或反向端口。
 - 候选框会先显示本地快速建议，`git`、`ssh`、`docker`、`npm`、`python`、`java`、`adb` 这类命令不用先等 API。
 - Kubernetes 常用命令也有本地候选，支持 `kube` 和 `kubectl`，例如 `kube get svc` 会直接给出 `-A`、`-n <命名空间>`、`-o wide`、`-o yaml` 等候选。
 - AI 候选会在后台补充进列表；AI 会返回多条候选命令，不要求所有命令都预存在本地。
@@ -123,11 +124,12 @@ taih-panel-reset              # 清理卡住的面板状态
 | PowerShell 快捷键 | 本地命令行补全、解释、诊断 | 加载 `powershell\taih-profile.ps1` 后使用 `Alt+/`、`F4`，`Ctrl+Space` 只作为可选键 |
 | 右侧管理面板 | 持续查看解释、历史、配置、规则 | `taih-panel` 或 `Alt+?` |
 | SSH 远端控制面板 | 像本地控制台一样操作远端服务器 | `taih-ssh-panel` |
+| 托盘当前终端输入 | Windows Terminal、SSH 标签页当前正在输入的命令 | 启动 `powershell\tray.ps1`，在 SSH 标签页里按 `Ctrl+Alt+P` 补全，按 `Ctrl+Alt+E` 解释 |
 | 托盘全局选区 | Windows Terminal、SSH、任意窗口选中文本 | 启动 `powershell\tray.ps1`，选中文本后按 `Ctrl+Alt+/` |
 | VS Code 右键 | 解释代码块、命令片段、日志片段 | 安装扩展后，选中文本右键使用“终端 AI 助手” |
-| SSH 反向隧道 | 远端 shell 内直接调用本机 API | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `integrations/ssh/taih-bash.sh` |
+| SSH 反向隧道 | 可选增强：远端 shell 内结构化读取 readline 当前行 | 本机 `taih serve`，SSH 使用 `-R`，远端加载 `integrations/ssh/taih-bash.sh` |
 
-Windows Terminal 没有稳定的第三方右键菜单扩展接口，所以项目提供的是托盘全局选区快捷键和 actions 配置说明，见：
+Windows Terminal 没有稳定的第三方右键菜单扩展接口，所以项目提供托盘全局热键和 actions 配置说明，见：
 
 ```powershell
 E:\3.13-aliyun-codex\5.2\terminal-ai-helper\integrations\windows-terminal\README.md
@@ -269,7 +271,34 @@ taih-panel
 - 本机 Windows Terminal 能看到 SSH 标签页里显示的文字，也能复制你用鼠标选中的内容。
 - 远端服务器里的 bash/readline 不能读取 Windows Terminal 的鼠标选区，因为选区属于本机终端 UI。
 
-### 方式一：本地 SSH 远端控制面板
+### 方式一：本机直接读取 SSH 标签页当前输入（推荐）
+
+这个方式不要求服务器安装任何东西，也不需要 `ssh -R`。它走本机 Windows UI Automation，从 Windows Terminal 当前标签页的可见文本里提取最后一行命令。
+
+启动托盘：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\powershell\tray.ps1
+```
+
+在 SSH 标签页里输入命令前缀，例如：
+
+```bash
+kube get svc
+```
+
+然后使用：
+
+| 快捷键 | 功能 |
+| --- | --- |
+| `Ctrl+Alt+P` | 读取当前终端输入，弹出本机补全候选框，选择后写回当前 SSH 命令行 |
+| `Ctrl+Alt+E` | 读取当前终端输入，打开本机管理面板解释 |
+| `Ctrl+Alt+/` | 解释鼠标选中的终端文本 |
+| `Ctrl+Alt+F` | 诊断鼠标选中的终端文本 |
+
+如果某个终端版本没有向 Windows 暴露可访问文本，`Ctrl+Alt+P/E` 可能读不到当前输入；这时退回到鼠标选中文本的 `Ctrl+Alt+/`，或使用下面的 SSH 反向隧道增强。
+
+### 方式二：本地 SSH 远端控制面板
 
 如果你想“在自己桌面窗口里像本地控制面板一样操作远端”，优先用这个入口：
 
@@ -298,7 +327,7 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-helper\apps\powershell\ssh-panel.ps1 -SmokeTest -Target root@us-vpn
 ```
 
-### 方式二：分析已显示的 SSH 文本
+### 方式三：分析已显示的 SSH 文本
 
 所以，如果只是想分析你桌面上已经看到的远端命令、报错或日志，推荐使用本机托盘的全局选区热键，不需要在服务器安装任何东西：
 
@@ -316,9 +345,9 @@ powershell -ExecutionPolicy Bypass -File E:\3.13-aliyun-codex\5.2\terminal-ai-he
 
 注意：如果没有选中文本，`Ctrl+C` 在终端里可能会被远端 shell 当作中断，所以使用前请先选中文本。
 
-### 方式三：远端 bash 快捷键
+### 方式四：远端 bash 快捷键（可选增强）
 
-如果想“不选中文本，直接读取远端当前正在编辑的命令行”，本机 PowerShell 的 PSReadLine 已经拿不到这段输入，因为输入已经交给 ssh 进程和远端 shell。这个场景可以使用远端 bash 集成，让远端 readline 把当前命令通过反向隧道发回本机：
+如果本机 UI Automation 读不到当前输入，或者你想要远端 readline 级别的结构化当前行，可以使用远端 bash 集成，让远端 readline 把当前命令通过反向隧道发回本机：
 
 ```powershell
 node E:\3.13-aliyun-codex\5.2\terminal-ai-helper\bin\taih.js serve --port 17888 --replace
