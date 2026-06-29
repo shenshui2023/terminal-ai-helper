@@ -1,6 +1,8 @@
 $script:TaihRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $script:TaihCli = Join-Path $script:TaihRoot "bin\taih.js"
 $script:TaihHistoryItems = New-Object System.Collections.ArrayList
+$script:TaihCommandCache = Join-Path $script:TaihRoot "src\knowledge\command-cache.json"
+$script:TaihCommandCacheEntries = $null
 
 function L {
     param([string]$Text)
@@ -617,6 +619,7 @@ function Show-TerminalAiCompletionPopup {
     })
     $form.Add_FormClosed({
         try { $timer.Stop(); $timer.Dispose() } catch {}
+        try { $summaryFont.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
         Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
     })
@@ -986,13 +989,41 @@ function Get-TerminalAiCursorScreenPoint {
 
 function Add-TerminalAiCompletionItem {
     param($ListBox, [string]$Value)
-    if (-not $Value -or -not $Value.Trim()) { return }
-    $text = $Value.Trim()
+    $text = Format-TerminalAiCompletionItem -Value $Value
+    if (-not $text) { return }
+    $command = Get-TerminalAiCompletionCommand -Value $text
     for ($i = 0; $i -lt $ListBox.Items.Count; $i++) {
-        if ([string]$ListBox.Items[$i] -eq $text) { return }
+        if ((Get-TerminalAiCompletionCommand -Value ([string]$ListBox.Items[$i])).Equals($command, [System.StringComparison]::OrdinalIgnoreCase)) { return }
     }
     [void]$ListBox.Items.Add($text)
     if ($ListBox.SelectedIndex -lt 0) { $ListBox.SelectedIndex = 0 }
+}
+
+function Get-TerminalAiCompletionCommand {
+    param([AllowNull()][string]$Value)
+    $text = ([string]$Value).Trim()
+    if (-not $text) { return "" }
+    if ($text.Contains("`t")) { return ($text -split "`t", 2)[0].Trim() }
+    return $text
+}
+
+function Get-TerminalAiCompletionSummary {
+    param([AllowNull()][string]$Value)
+    $text = ([string]$Value).Trim()
+    if (-not $text -or -not $text.Contains("`t")) { return "" }
+    return ($text -split "`t", 2)[1].Trim()
+}
+
+function Format-TerminalAiCompletionItem {
+    param([AllowNull()][string]$Value, [string]$Summary = "")
+    $command = Get-TerminalAiCompletionCommand -Value $Value
+    if (-not $command) { return "" }
+    $desc = ([string]$Summary).Trim()
+    if (-not $desc -and ([string]$Value).Contains("`t")) {
+        $desc = Get-TerminalAiCompletionSummary -Value $Value
+    }
+    if ($desc) { return "$command`t$desc" }
+    return $command
 }
 
 function Show-TerminalAiCompletionPopup {
@@ -1800,6 +1831,37 @@ function Show-TerminalAiCompletionPopup {
     $list.ForeColor = $fg
     $list.BorderStyle = "None"
     $list.Font = New-Object System.Drawing.Font("Consolas", 10)
+    $list.DrawMode = [System.Windows.Forms.DrawMode]::OwnerDrawFixed
+    $list.ItemHeight = 24
+    $summaryFont = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+    $list.Add_DrawItem({
+        param($sender, $eventArgs)
+        if ($eventArgs.Index -lt 0) { return }
+        $text = [string]$sender.Items[$eventArgs.Index]
+        $command = Get-TerminalAiCompletionCommand -Value $text
+        $summary = Get-TerminalAiCompletionSummary -Value $text
+        $selected = (($eventArgs.State -band [System.Windows.Forms.DrawItemState]::Selected) -ne 0)
+        $backColor = if ($selected) { $accent } else { $surface }
+        $commandColor = if ($selected) { [System.Drawing.Color]::White } else { $fg }
+        $summaryColor = if ($selected) { [System.Drawing.Color]::FromArgb(225, 235, 245) } else { $muted }
+        $backBrush = New-Object System.Drawing.SolidBrush($backColor)
+        $commandBrush = New-Object System.Drawing.SolidBrush($commandColor)
+        $summaryBrush = New-Object System.Drawing.SolidBrush($summaryColor)
+        try {
+            $eventArgs.Graphics.FillRectangle($backBrush, $eventArgs.Bounds)
+            $commandWidth = [Math]::Min(460, [Math]::Max(260, [int]($eventArgs.Bounds.Width * 0.48)))
+            $commandRect = New-Object System.Drawing.RectangleF(($eventArgs.Bounds.X + 4), ($eventArgs.Bounds.Y + 3), $commandWidth, ($eventArgs.Bounds.Height - 4))
+            $summaryRect = New-Object System.Drawing.RectangleF(($eventArgs.Bounds.X + $commandWidth + 18), ($eventArgs.Bounds.Y + 4), [Math]::Max(20, $eventArgs.Bounds.Width - $commandWidth - 24), ($eventArgs.Bounds.Height - 4))
+            $eventArgs.Graphics.DrawString($command, $sender.Font, $commandBrush, $commandRect)
+            if ($summary) {
+                $eventArgs.Graphics.DrawString($summary, $summaryFont, $summaryBrush, $summaryRect)
+            }
+        } finally {
+            $backBrush.Dispose()
+            $commandBrush.Dispose()
+            $summaryBrush.Dispose()
+        }
+    })
 
     $edit = New-Object System.Windows.Forms.TextBox
     $edit.Dock = "Fill"
@@ -1867,7 +1929,7 @@ function Show-TerminalAiCompletionPopup {
     if ($list.Items.Count -eq 0) {
         Add-TerminalAiCompletionItem -ListBox $list -Value $Prefix
     }
-    $edit.Text = [string]$list.SelectedItem
+    $edit.Text = Get-TerminalAiCompletionCommand -Value ([string]$list.SelectedItem)
     $edit.SelectionStart = $edit.TextLength
 
     $script:TaihCompletionChoice = $null
@@ -1992,12 +2054,12 @@ function Show-TerminalAiCompletionPopup {
 
     $list.Add_SelectedIndexChanged({
         if ($list.SelectedIndex -ge 0) {
-            $edit.Text = [string]$list.SelectedItem
+            $edit.Text = Get-TerminalAiCompletionCommand -Value ([string]$list.SelectedItem)
             $edit.SelectionStart = $edit.TextLength
         }
     })
     $accept = {
-        $value = [string]$edit.Text
+        $value = Get-TerminalAiCompletionCommand -Value ([string]$edit.Text)
         if ($value.Trim()) {
             $script:TaihCompletionChoice = $value
             $form.Close()
@@ -2005,10 +2067,13 @@ function Show-TerminalAiCompletionPopup {
     }
     $insert.Add_Click($accept)
     $list.Add_DoubleClick($accept)
-    $copy.Add_Click({ if ($edit.Text) { Set-Clipboard -Value $edit.Text; $status.Text = L '\u5df2\u590d\u5236' } })
+    $copy.Add_Click({
+        $value = Get-TerminalAiCompletionCommand -Value ([string]$edit.Text)
+        if ($value) { Set-Clipboard -Value $value; $status.Text = L '\u5df2\u590d\u5236' }
+    })
     $refresh.Add_Click({ & $startAi })
     $explain.Add_Click({
-        $value = [string]$edit.Text
+        $value = Get-TerminalAiCompletionCommand -Value ([string]$edit.Text)
         if ($value.Trim()) {
             $status.Text = L '\u5df2\u6253\u5f00\u89e3\u91ca\u9762\u677f'
             $form.Close()
@@ -2044,7 +2109,7 @@ function Show-TerminalAiCompletionPopup {
     })
 
     if ($env:TAIH_TEST_COMPLETION_POPUP_NO_DIALOG -eq "1") {
-        $script:TaihCompletionChoice = [string]$edit.Text
+        $script:TaihCompletionChoice = Get-TerminalAiCompletionCommand -Value ([string]$edit.Text)
         try { $timer.Stop(); $timer.Dispose() } catch {}
         if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
         Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
@@ -2070,17 +2135,93 @@ function Convert-TerminalAiCompletionPrefix {
     return $value
 }
 
+function Get-TerminalAiCommandCacheEntries {
+    if ($script:TaihCommandCacheEntries -ne $null) { return @($script:TaihCommandCacheEntries) }
+    if (-not (Test-Path -LiteralPath $script:TaihCommandCache)) {
+        $script:TaihCommandCacheEntries = @()
+        return @()
+    }
+    try {
+        $raw = [System.IO.File]::ReadAllText($script:TaihCommandCache, [System.Text.Encoding]::UTF8)
+        $data = $raw | ConvertFrom-Json
+        $script:TaihCommandCacheEntries = @($data.commands)
+        return @($script:TaihCommandCacheEntries)
+    } catch {
+        $script:TaihCommandCacheEntries = @()
+        return @()
+    }
+}
+
+function Convert-TerminalAiSearchPrefix {
+    param([string]$Prefix)
+    $value = ([string]$Prefix).Trim()
+    if (-not $value) { return "" }
+    if ($value -match '^kube(\s|$)') { return $value -replace '^kube', 'kubectl' }
+    if ($value -match '^system(\s|$)') { return $value -replace '^system', 'systemctl' }
+    return $value
+}
+
+function Get-TerminalAiCacheCompletions {
+    param([string]$Prefix, [int]$Limit = 14)
+    $original = ([string]$Prefix).Trim()
+    $search = (Convert-TerminalAiSearchPrefix -Prefix $original).ToLowerInvariant()
+    if (-not $search) { return @() }
+    $tokens = @($search -split '\s+' | Where-Object { $_ })
+    $scored = New-Object System.Collections.Generic.List[object]
+    $index = 0
+
+    foreach ($entry in (Get-TerminalAiCommandCacheEntries)) {
+        $index += 1
+        $command = ([string]$entry.command).Trim()
+        if (-not $command) { continue }
+        $aliases = @($entry.aliases)
+        $summary = ([string]$entry.summary).Trim()
+        $tags = @($entry.tags)
+        $haystack = (($command, $summary, $entry.tool) + $aliases + $tags -join " ").ToLowerInvariant()
+        $score = 0
+        if ($command.ToLowerInvariant().StartsWith($search)) { $score += 100 }
+        foreach ($alias in $aliases) {
+            if (([string]$alias).ToLowerInvariant().StartsWith($original.ToLowerInvariant())) { $score += 96 }
+        }
+        if ($haystack.Contains($search)) { $score += 40 }
+        foreach ($token in $tokens) {
+            if ($haystack.Contains($token)) { $score += 8 }
+        }
+        if ($score -le 0) { continue }
+
+        $displayCommand = $command
+        foreach ($alias in $aliases) {
+            $aliasText = ([string]$alias).Trim()
+            if ($aliasText.ToLowerInvariant().StartsWith($original.ToLowerInvariant()) -and $original -notmatch '^system(\s|$)') {
+                $displayCommand = $aliasText
+                break
+            }
+        }
+        [void]$scored.Add([pscustomobject]@{ Score = $score; Index = $index; Command = $displayCommand; Summary = $summary })
+    }
+
+    $items = New-Object System.Collections.Generic.List[string]
+    foreach ($item in ($scored | Sort-Object -Property @{ Expression = "Score"; Descending = $true }, @{ Expression = "Index"; Ascending = $true } | Select-Object -First $Limit)) {
+        [void]$items.Add((Format-TerminalAiCompletionItem -Value $item.Command -Summary $item.Summary))
+    }
+    return @($items)
+}
+
 function Get-TerminalAiLocalCompletions {
     param([string]$Prefix)
 
     $text = Convert-TerminalAiCompletionPrefix -Prefix $Prefix
     if (-not $text) { return @() }
     $command = ($text -split '\s+', 2)[0].ToLowerInvariant()
-    $candidates = @()
+    $candidates = @(Get-TerminalAiCacheCompletions -Prefix $Prefix)
     $userName = L '\u003c\u7528\u6237\u540d\u003e'
     $hostName = L '\u003c\u4e3b\u673a\u003e'
     $portName = L '\u003c\u7aef\u53e3\u003e'
     $keyPath = L '\u003c\u79c1\u94a5\u8def\u5f84\u003e'
+
+    if ($candidates.Count -gt 0) {
+        return $candidates
+    }
 
     switch ($command) {
         "systemctl" {

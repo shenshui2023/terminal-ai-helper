@@ -1,0 +1,4261 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "kubernetes-kubectl",
+      "name": "kubectl 官方参考",
+      "url": "https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands"
+    },
+    {
+      "id": "docker-cli",
+      "name": "Docker CLI 官方参考",
+      "url": "https://docs.docker.com/reference/cli/docker/"
+    },
+    {
+      "id": "mysql-client",
+      "name": "MySQL Command-Line Client 官方文档",
+      "url": "https://dev.mysql.com/doc/en/mysql.html"
+    },
+    {
+      "id": "mysql-sql-statements",
+      "name": "MySQL 8.4 SQL Statements 官方文档",
+      "url": "https://dev.mysql.com/doc/refman/8.4/en/sql-statements.html"
+    },
+    {
+      "id": "redis-cli",
+      "name": "Redis CLI 官方文档",
+      "url": "https://redis.io/docs/latest/develop/tools/cli/"
+    },
+    {
+      "id": "gnu-coreutils",
+      "name": "GNU Coreutils 官方手册",
+      "url": "https://www.gnu.org/software/coreutils/manual/coreutils.html"
+    },
+    {
+      "id": "linux-man-pages",
+      "name": "Linux man-pages 官方手册",
+      "url": "https://www.man7.org/linux/man-pages/"
+    },
+    {
+      "id": "iproute2-man",
+      "name": "iproute2 ip/ss 官方手册",
+      "url": "https://man7.org/linux/man-pages/man8/ip.8.html"
+    },
+    {
+      "id": "journalctl-man",
+      "name": "journalctl 官方手册",
+      "url": "https://man7.org/linux/man-pages/man1/journalctl.1.html"
+    },
+    {
+      "id": "debian-apt",
+      "name": "Debian apt 官方手册",
+      "url": "https://manpages.debian.org/trixie/apt/apt.8.en.html"
+    },
+    {
+      "id": "dnf-reference",
+      "name": "DNF 官方命令参考",
+      "url": "https://dnf.readthedocs.io/en/latest/command_ref.html"
+    },
+    {
+      "id": "gnu-findutils",
+      "name": "GNU findutils 手册",
+      "url": "https://man7.org/linux/man-pages/man1/find.1.html"
+    },
+    {
+      "id": "gnu-grep",
+      "name": "GNU grep 手册",
+      "url": "https://www.gnu.org/software/grep/manual/grep.html"
+    },
+    {
+      "id": "windows-commands",
+      "name": "Microsoft Windows Commands 官方文档",
+      "url": "https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/windows-commands"
+    },
+    {
+      "id": "powershell-service",
+      "name": "Microsoft PowerShell 服务管理官方文档",
+      "url": "https://learn.microsoft.com/en-us/powershell/scripting/samples/managing-services"
+    },
+    {
+      "id": "git-reference",
+      "name": "Git 官方命令参考",
+      "url": "https://git-scm.com/docs"
+    },
+    {
+      "id": "systemctl-reference",
+      "name": "systemctl 官方手册",
+      "url": "https://www.freedesktop.org/software/systemd/man/systemctl.html"
+    },
+    {
+      "id": "node-npm",
+      "name": "npm CLI 官方文档",
+      "url": "https://docs.npmjs.com/cli"
+    },
+    {
+      "id": "python-docs",
+      "name": "Python 官方文档",
+      "url": "https://docs.python.org/3/"
+    },
+    {
+      "id": "maven-cli",
+      "name": "Apache Maven 官方文档",
+      "url": "https://maven.apache.org/ref/current/maven-embedder/cli.html"
+    },
+    {
+      "id": "android-adb",
+      "name": "Android Debug Bridge 官方文档",
+      "url": "https://developer.android.com/tools/adb"
+    }
+  ],
+  "commands": [
+    {
+      "tool": "systemd",
+      "command": "systemctl status <服务名>",
+      "summary": "查看服务状态",
+      "aliases": [
+        "system status <服务名>"
+      ],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "status"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl start <服务名>",
+      "summary": "启动服务",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "start"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl stop <服务名>",
+      "summary": "停止服务",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "stop",
+        "risk"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl restart <服务名>",
+      "summary": "重启服务",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "restart",
+        "risk"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl reload <服务名>",
+      "summary": "重新加载服务配置",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "reload"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl enable --now <服务名>",
+      "summary": "设置开机自启并立即启动服务",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "enable"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl disable <服务名>",
+      "summary": "取消服务开机自启",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "disable"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl list-units --type=service --state=running",
+      "summary": "查看正在运行的服务",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "list"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl list-unit-files --type=service",
+      "summary": "查看服务单元文件及启用状态",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "service",
+        "list"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "systemctl daemon-reload",
+      "summary": "重新加载 systemd unit 文件",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "daemon"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "journalctl -u <服务名> -n 100 --no-pager",
+      "summary": "查看服务最近 100 行日志",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "journal",
+        "logs"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "systemd",
+      "command": "journalctl -u <服务名> -f",
+      "summary": "持续跟踪服务日志",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "systemd",
+        "journal",
+        "follow"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "ps aux | grep <关键词>",
+      "summary": "按关键词查找进程",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "debug"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "top",
+      "summary": "实时查看 CPU 和进程占用",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "monitor"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "free -h",
+      "summary": "查看内存使用情况",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "memory",
+        "diagnose"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "df -h",
+      "summary": "查看磁盘分区容量",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "diagnose"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "du -sh <目录>",
+      "summary": "查看目录占用空间",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "diagnose"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "lsblk",
+      "summary": "查看磁盘和分区结构",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "block"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "ss -lntp",
+      "summary": "查看监听中的 TCP 端口及进程",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "port"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "ip addr",
+      "summary": "查看网卡和 IP 地址",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "ip"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "ip route",
+      "summary": "查看路由表",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "route"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "curl -I <URL>",
+      "summary": "查看 HTTP 响应头和连通性",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "curl",
+        "http",
+        "debug"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "curl -v <URL>",
+      "summary": "显示 HTTP/TLS 连接详细过程",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "curl",
+        "http",
+        "debug"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "tail -f <日志文件>",
+      "summary": "持续查看日志文件新增内容",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "logs",
+        "follow"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "grep -R \"<关键词>\" <目录>",
+      "summary": "递归搜索文件内容",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "search",
+        "grep"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "find <目录> -name \"<文件名>\"",
+      "summary": "按名称查找文件",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "find",
+        "file"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "tar -czf <压缩包.tar.gz> <目录>",
+      "summary": "创建 gzip tar 压缩包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "tar",
+        "archive"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "tar -xzf <压缩包.tar.gz>",
+      "summary": "解压 gzip tar 压缩包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "tar",
+        "extract"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "ls -lah",
+      "summary": "查看当前目录详细文件列表，包含隐藏文件和易读大小",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "list"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "pwd",
+      "summary": "显示当前所在目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "path",
+        "shell"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "cd <目录>",
+      "summary": "切换当前工作目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "path",
+        "shell"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "cp -a <源> <目标>",
+      "summary": "保留权限和时间戳递归复制文件或目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "copy"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "mv <源> <目标>",
+      "summary": "移动文件或目录，也可用于重命名",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "move"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "rm -i <文件>",
+      "summary": "交互式删除文件，删除前逐项确认",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "delete",
+        "risk"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "rm -rf <目录>",
+      "summary": "强制递归删除目录，执行前必须确认路径",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "delete",
+        "risk"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "mkdir -p <目录>",
+      "summary": "创建多级目录，父目录不存在时自动创建",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "directory"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "touch <文件>",
+      "summary": "创建空文件或更新文件修改时间",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "ln -s <目标> <链接名>",
+      "summary": "创建符号链接",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "link"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "realpath <路径>",
+      "summary": "解析并输出绝对路径",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "path"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "stat <文件>",
+      "summary": "查看文件权限、大小、时间戳等元数据",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "metadata"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "file <文件>",
+      "summary": "识别文件类型和编码等信息",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "file",
+        "inspect"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "cat <文件>",
+      "summary": "输出文件内容，适合查看短文件",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "view"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "less <文件>",
+      "summary": "分页查看长文件，按 q 退出",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "view"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "head -n 50 <文件>",
+      "summary": "查看文件前 50 行",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "view"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "tail -n 100 <文件>",
+      "summary": "查看文件最后 100 行",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "view"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "grep -n \"<关键词>\" <文件>",
+      "summary": "在文件中搜索关键词并显示行号",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "search",
+        "grep"
+      ],
+      "source": "gnu-grep"
+    },
+    {
+      "tool": "linux",
+      "command": "grep -RIn \"<关键词>\" <目录>",
+      "summary": "递归搜索目录内容，显示文件名和行号",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "search",
+        "grep"
+      ],
+      "source": "gnu-grep"
+    },
+    {
+      "tool": "linux",
+      "command": "awk '{print $1}' <文件>",
+      "summary": "按列处理文本并输出第一列",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "awk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "sed -n '<起始行>,<结束行>p' <文件>",
+      "summary": "按行号范围打印文件内容",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "sed"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "sort <文件> | uniq -c | sort -nr",
+      "summary": "统计重复行并按次数倒序排列",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "sort"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "cut -d '<分隔符>' -f <字段序号> <文件>",
+      "summary": "按分隔符提取文本字段",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "cut"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "wc -l <文件>",
+      "summary": "统计文件行数",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "count"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "diff -u <旧文件> <新文件>",
+      "summary": "以 unified 格式对比两个文件差异",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "text",
+        "diff"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "chmod +x <文件>",
+      "summary": "给脚本或程序添加可执行权限",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "permission",
+        "chmod"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "chmod 600 <文件>",
+      "summary": "设置文件仅当前用户可读写，常用于私钥",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "permission",
+        "chmod",
+        "security"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "chown <用户>:<组> <路径>",
+      "summary": "修改文件或目录属主和属组",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "permission",
+        "owner"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "chown -R <用户>:<组> <目录>",
+      "summary": "递归修改目录属主和属组",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "permission",
+        "owner",
+        "risk"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "umask",
+      "summary": "查看当前 shell 默认权限掩码",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "permission",
+        "shell"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "id",
+      "summary": "查看当前用户 UID、GID 和所属组",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "permission"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "groups <用户>",
+      "summary": "查看指定用户所属用户组",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "permission"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "sudo -l",
+      "summary": "查看当前用户允许执行的 sudo 权限",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "sudo",
+        "security"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "pgrep -af <关键词>",
+      "summary": "按关键词查找进程并显示完整命令行",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "pidof <进程名>",
+      "summary": "按进程名获取 PID",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "kill <PID>",
+      "summary": "向进程发送默认 TERM 信号请求退出",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "kill",
+        "risk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "kill -9 <PID>",
+      "summary": "强制终止进程，仅在普通 kill 无效时使用",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "kill",
+        "risk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "pkill -f <关键词>",
+      "summary": "按完整命令行匹配并终止进程，执行前确认匹配范围",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "kill",
+        "risk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "nohup <命令> > <日志> 2>&1 &",
+      "summary": "让命令在退出终端后继续后台运行并写入日志",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "background"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "jobs -l",
+      "summary": "查看当前 shell 的后台任务和 PID",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "shell"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "fg %<任务号>",
+      "summary": "把后台任务切回前台",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "shell"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "nice -n <优先级> <命令>",
+      "summary": "以指定 CPU 调度优先级启动命令",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "performance"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "renice <优先级> -p <PID>",
+      "summary": "调整已运行进程的 CPU 调度优先级",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "process",
+        "performance"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "uptime",
+      "summary": "查看系统运行时长和负载均值",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "load"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "hostnamectl",
+      "summary": "查看或管理主机名与系统信息",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "host"
+      ],
+      "source": "systemctl-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "uname -a",
+      "summary": "查看内核版本和系统架构",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "kernel"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "lscpu",
+      "summary": "查看 CPU 架构、核心数和线程信息",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "cpu"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "vmstat 1",
+      "summary": "每秒刷新一次 CPU、内存、IO 等系统指标",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "performance"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "iostat -xz 1",
+      "summary": "每秒查看磁盘 IO 延迟和利用率，需要 sysstat",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "performance"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "dmesg -T | tail -n 100",
+      "summary": "查看最近内核日志并转换为可读时间",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "system",
+        "logs",
+        "kernel"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "journalctl -xe",
+      "summary": "查看 systemd 最近错误和提示信息",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "logs",
+        "systemd"
+      ],
+      "source": "journalctl-man"
+    },
+    {
+      "tool": "linux",
+      "command": "journalctl -p err -b",
+      "summary": "查看本次启动以来的错误级别日志",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "logs",
+        "systemd",
+        "debug"
+      ],
+      "source": "journalctl-man"
+    },
+    {
+      "tool": "linux",
+      "command": "journalctl --disk-usage",
+      "summary": "查看 journal 日志占用磁盘空间",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "logs",
+        "disk"
+      ],
+      "source": "journalctl-man"
+    },
+    {
+      "tool": "linux",
+      "command": "last -a",
+      "summary": "查看登录历史并显示来源地址",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "security"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "who",
+      "summary": "查看当前登录用户",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "lsblk -f",
+      "summary": "查看块设备、文件系统类型和挂载点",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "block"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "blkid",
+      "summary": "查看磁盘分区 UUID 和文件系统类型",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "block"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "mount | column -t",
+      "summary": "格式化查看当前挂载信息",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "mount"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "findmnt",
+      "summary": "以树形结构查看挂载点",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "mount"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "mount <设备> <挂载点>",
+      "summary": "挂载设备到指定目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "mount",
+        "risk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "umount <挂载点>",
+      "summary": "卸载指定挂载点",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "mount",
+        "risk"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "df -ih",
+      "summary": "查看 inode 使用情况，排查小文件过多",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "inode"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "du -ah <目录> | sort -h | tail -n 20",
+      "summary": "找出目录中占用空间最大的 20 项",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "diagnose"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "lsof +L1",
+      "summary": "查找已删除但仍被进程占用的文件",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "process",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "fuser -vm <挂载点>",
+      "summary": "查看哪些进程正在占用挂载点",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "disk",
+        "process",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "ip -br addr",
+      "summary": "以简洁格式查看网卡和 IP 地址",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "ip"
+      ],
+      "source": "iproute2-man"
+    },
+    {
+      "tool": "linux",
+      "command": "ip link",
+      "summary": "查看网卡链路状态",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "link"
+      ],
+      "source": "iproute2-man"
+    },
+    {
+      "tool": "linux",
+      "command": "ip route get <IP>",
+      "summary": "查看访问指定 IP 会走哪条路由和网卡",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "route"
+      ],
+      "source": "iproute2-man"
+    },
+    {
+      "tool": "linux",
+      "command": "ss -tunap",
+      "summary": "查看 TCP/UDP 连接、监听端口和进程",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "port",
+        "debug"
+      ],
+      "source": "iproute2-man"
+    },
+    {
+      "tool": "linux",
+      "command": "ss -ant state established",
+      "summary": "查看已建立的 TCP 连接",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "connection"
+      ],
+      "source": "iproute2-man"
+    },
+    {
+      "tool": "linux",
+      "command": "ping -c 4 <主机>",
+      "summary": "向主机发送 4 次 ICMP 请求测试连通性",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "ping"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "traceroute <主机>",
+      "summary": "跟踪到目标主机经过的网络路径",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "route",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "dig <域名>",
+      "summary": "查询 DNS 解析结果",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "dns"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "nslookup <域名>",
+      "summary": "查询域名解析结果",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "dns"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "curl -fsSL <URL> -o <文件>",
+      "summary": "下载 URL 到文件，失败时返回非 0 状态",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "curl",
+        "download"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "wget -O <文件> <URL>",
+      "summary": "下载 URL 到指定文件",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "download"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "nc -vz <主机> <端口>",
+      "summary": "测试目标主机端口是否可连接",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "port",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "tcpdump -i <网卡> port <端口> -nn",
+      "summary": "抓取指定网卡和端口的数据包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "network",
+        "packet",
+        "debug"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "apt update",
+      "summary": "刷新 Debian/Ubuntu 软件包索引",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "apt"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "apt install <包名>",
+      "summary": "安装 Debian/Ubuntu 软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "apt"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "apt remove <包名>",
+      "summary": "卸载 Debian/Ubuntu 软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "apt",
+        "risk"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "apt search <关键词>",
+      "summary": "搜索 Debian/Ubuntu 软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "apt"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "apt list --installed",
+      "summary": "列出已安装的 Debian/Ubuntu 软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "apt"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "dnf install <包名>",
+      "summary": "安装 Fedora/RHEL 系软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "dnf"
+      ],
+      "source": "dnf-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "dnf remove <包名>",
+      "summary": "卸载 Fedora/RHEL 系软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "dnf",
+        "risk"
+      ],
+      "source": "dnf-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "dnf search <关键词>",
+      "summary": "搜索 Fedora/RHEL 系软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "dnf"
+      ],
+      "source": "dnf-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "dnf update",
+      "summary": "更新 Fedora/RHEL 系系统软件包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "dnf",
+        "risk"
+      ],
+      "source": "dnf-reference"
+    },
+    {
+      "tool": "linux",
+      "command": "rpm -qa | grep <关键词>",
+      "summary": "在 RPM 系统中查询已安装包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "rpm"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "dpkg -l | grep <关键词>",
+      "summary": "在 Debian 系统中查询已安装包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "package",
+        "dpkg"
+      ],
+      "source": "debian-apt"
+    },
+    {
+      "tool": "linux",
+      "command": "tar -tf <压缩包.tar.gz>",
+      "summary": "列出 tar 压缩包内容但不解压",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "tar",
+        "archive"
+      ],
+      "source": "gnu-coreutils"
+    },
+    {
+      "tool": "linux",
+      "command": "zip -r <压缩包.zip> <目录>",
+      "summary": "递归创建 zip 压缩包",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "archive",
+        "zip"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "unzip <压缩包.zip> -d <目录>",
+      "summary": "解压 zip 文件到指定目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "archive",
+        "unzip"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "useradd -m <用户名>",
+      "summary": "创建用户并自动创建家目录",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "admin"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "passwd <用户名>",
+      "summary": "设置或修改用户密码",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "security"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "usermod -aG <组名> <用户名>",
+      "summary": "把用户追加到指定用户组",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "group"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "linux",
+      "command": "su - <用户名>",
+      "summary": "切换到指定用户并加载其登录环境",
+      "aliases": [],
+      "tags": [
+        "linux",
+        "user",
+        "shell"
+      ],
+      "source": "linux-man-pages"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get pods -A",
+      "summary": "查看所有命名空间的 Pod",
+      "aliases": [
+        "kube get pods -A"
+      ],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "list"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get pods -A -o wide",
+      "summary": "查看所有命名空间 Pod 并显示节点、IP 等扩展信息",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "list",
+        "wide"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get pods -n <命名空间>",
+      "summary": "查看指定命名空间的 Pod",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "namespace"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get pod <Pod名> -n <命名空间> -o yaml",
+      "summary": "查看单个 Pod 的完整 YAML",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "yaml"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl describe pod <Pod名> -n <命名空间>",
+      "summary": "查看 Pod 事件、镜像、调度和异常原因",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "debug"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl logs -f <Pod名> -n <命名空间>",
+      "summary": "持续查看 Pod 日志",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "logs"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl logs -f <Pod名> -c <容器名> -n <命名空间>",
+      "summary": "查看多容器 Pod 中指定容器日志",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "logs",
+        "container"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl exec -it <Pod名> -n <命名空间> -- sh",
+      "summary": "进入 Pod 容器 shell",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "pod",
+        "exec",
+        "shell"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get svc -A",
+      "summary": "查看所有命名空间的 Service",
+      "aliases": [
+        "kube get svc -A"
+      ],
+      "tags": [
+        "kubernetes",
+        "service",
+        "list"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get svc -n <命名空间>",
+      "summary": "查看指定命名空间 Service",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "service",
+        "namespace"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get svc -n <命名空间> -o wide",
+      "summary": "查看 Service 并显示更多字段",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "service",
+        "wide"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get svc <服务名> -n <命名空间> -o yaml",
+      "summary": "查看单个 Service 完整 YAML",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "service",
+        "yaml"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl describe svc <服务名> -n <命名空间>",
+      "summary": "查看 Service 端口、选择器和事件",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "service",
+        "debug"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get deploy -A",
+      "summary": "查看所有命名空间 Deployment",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "deployment",
+        "list"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl rollout status deployment/<部署名> -n <命名空间>",
+      "summary": "查看 Deployment 发布状态",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "deployment",
+        "rollout"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl rollout restart deployment/<部署名> -n <命名空间>",
+      "summary": "重启 Deployment 下的 Pod",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "deployment",
+        "restart"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl scale deployment/<部署名> --replicas=<数量> -n <命名空间>",
+      "summary": "调整 Deployment 副本数",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "deployment",
+        "scale"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl get events -A --sort-by=.metadata.creationTimestamp",
+      "summary": "按时间查看集群事件",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "events",
+        "debug"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl top pods -A",
+      "summary": "查看 Pod CPU/内存使用量",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "metrics",
+        "top"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl top nodes",
+      "summary": "查看节点 CPU/内存使用量",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "node",
+        "metrics"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl apply -f <文件.yaml>",
+      "summary": "应用 YAML 资源配置",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "apply",
+        "yaml"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl diff -f <文件.yaml>",
+      "summary": "预览 YAML 应用后的差异",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "diff",
+        "yaml"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl delete -f <文件.yaml>",
+      "summary": "删除 YAML 中定义的资源",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "delete",
+        "risk"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl config get-contexts",
+      "summary": "查看 kubeconfig 中的上下文",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "config",
+        "context"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl config use-context <上下文名>",
+      "summary": "切换 kubectl 当前上下文",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "config",
+        "context"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "k8s",
+      "command": "kubectl port-forward svc/<服务名> <本地端口>:<服务端口> -n <命名空间>",
+      "summary": "把 Service 端口转发到本机调试",
+      "aliases": [],
+      "tags": [
+        "kubernetes",
+        "service",
+        "port-forward"
+      ],
+      "source": "kubernetes-kubectl"
+    },
+    {
+      "tool": "docker",
+      "command": "docker ps",
+      "summary": "查看正在运行的容器",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "container",
+        "list"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker ps -a",
+      "summary": "查看所有容器",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "container",
+        "list"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker ps --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\"",
+      "summary": "按表格查看容器名称、状态和端口",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "container",
+        "list"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker logs --tail 200 -f <容器名或ID>",
+      "summary": "查看并持续跟踪容器最近日志",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "logs",
+        "debug"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker exec -it <容器名或ID> sh",
+      "summary": "进入运行中的容器 shell",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "exec",
+        "shell"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker inspect <容器名或ID>",
+      "summary": "查看容器或镜像的详细 JSON 信息",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "inspect",
+        "debug"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker stats",
+      "summary": "实时查看容器资源占用",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "stats",
+        "monitor"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker images",
+      "summary": "查看本地镜像列表",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "image",
+        "list"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker build -t <镜像名>:<标签> .",
+      "summary": "从当前目录 Dockerfile 构建镜像",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "image",
+        "build"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker run --rm -it <镜像名> sh",
+      "summary": "临时启动容器并进入 shell",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "run",
+        "shell"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker run -d --name <容器名> -p <宿主端口>:<容器端口> <镜像名>",
+      "summary": "后台启动容器并映射端口",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "run",
+        "port"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker stop <容器名或ID>",
+      "summary": "停止运行中的容器",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "container",
+        "stop",
+        "risk"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker rm <容器名或ID>",
+      "summary": "删除已停止的容器",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "container",
+        "remove",
+        "risk"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker rmi <镜像名或ID>",
+      "summary": "删除本地镜像",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "image",
+        "remove",
+        "risk"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker compose up -d",
+      "summary": "后台启动 compose 项目",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "compose",
+        "up"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker compose ps",
+      "summary": "查看 compose 服务状态",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "compose",
+        "status"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker compose logs -f <服务名>",
+      "summary": "持续查看 compose 服务日志",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "compose",
+        "logs"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker compose down",
+      "summary": "停止并移除 compose 容器和网络",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "compose",
+        "down",
+        "risk"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker system df",
+      "summary": "查看 Docker 镜像、容器、卷占用空间",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "disk",
+        "diagnose"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "docker",
+      "command": "docker system prune -a",
+      "summary": "清理未使用镜像、容器和网络",
+      "aliases": [],
+      "tags": [
+        "docker",
+        "cleanup",
+        "risk"
+      ],
+      "source": "docker-cli"
+    },
+    {
+      "tool": "mysql",
+      "command": "mysql -u <用户名> -p <数据库名>",
+      "summary": "登录 MySQL 并选择数据库",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "login",
+        "database"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "mysql -h <主机> -P <端口> -u <用户名> -p",
+      "summary": "连接远程 MySQL",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "login",
+        "remote"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "mysql <数据库名> < <脚本.sql>",
+      "summary": "执行 SQL 脚本文件",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "script",
+        "import"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW DATABASES;",
+      "summary": "查看数据库列表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "list"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "USE <数据库名>;",
+      "summary": "切换当前数据库",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "database"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW TABLES;",
+      "summary": "查看当前数据库表列表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "table"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "DESC <表名>;",
+      "summary": "查看表字段结构",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "schema"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SELECT <字段> FROM <表名> WHERE <条件> LIMIT <数量>;",
+      "summary": "按条件查询数据",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "select"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "EXPLAIN SELECT <字段> FROM <表名> WHERE <条件>;",
+      "summary": "查看 SQL 执行计划",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "explain",
+        "debug"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW PROCESSLIST;",
+      "summary": "查看当前连接和正在执行的 SQL",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "process",
+        "debug"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW VARIABLES LIKE \"%max_connections%\";",
+      "summary": "查看 MySQL 参数值",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "variables",
+        "debug"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW GRANTS FOR <用户>@<主机>;",
+      "summary": "查看用户授权",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "grant",
+        "security"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "mysqldump -u <用户名> -p <数据库名> > <备份.sql>",
+      "summary": "导出数据库备份",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "backup",
+        "dump"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "mysqladmin -u <用户名> -p ping",
+      "summary": "检查 MySQL 服务是否响应",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "health",
+        "ping"
+      ],
+      "source": "mysql-client"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE DATABASE <数据库名> DEFAULT CHARACTER SET utf8mb4;",
+      "summary": "创建数据库并指定默认字符集",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "database"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER DATABASE <数据库名> CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;",
+      "summary": "修改数据库默认字符集和排序规则",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "database"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP DATABASE <数据库名>;",
+      "summary": "删除数据库，执行前必须确认备份",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "database",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE TABLE <表名> (<列名> <类型> PRIMARY KEY);",
+      "summary": "创建表并定义字段",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE TABLE <新表> LIKE <原表>;",
+      "summary": "复制表结构但不复制数据",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE TABLE <新表> AS SELECT * FROM <原表>;",
+      "summary": "按查询结果创建新表并复制数据",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "select"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> ADD COLUMN <列名> <类型>;",
+      "summary": "给表新增字段",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "column"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> MODIFY COLUMN <列名> <新类型>;",
+      "summary": "修改字段类型或属性",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "column"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> CHANGE COLUMN <旧列名> <新列名> <类型>;",
+      "summary": "重命名字段并指定字段定义",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "column"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> DROP COLUMN <列名>;",
+      "summary": "删除字段，执行前确认依赖和备份",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "column",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> ADD PRIMARY KEY (<列名>);",
+      "summary": "给表新增主键",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "primary-key"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER TABLE <表名> ADD CONSTRAINT <外键名> FOREIGN KEY (<列名>) REFERENCES <父表>(<父列>);",
+      "summary": "给表新增外键约束",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "foreign-key"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "RENAME TABLE <旧表名> TO <新表名>;",
+      "summary": "重命名表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "TRUNCATE TABLE <表名>;",
+      "summary": "快速清空表数据并重置自增值",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP TABLE <表名>;",
+      "summary": "删除表结构和数据，执行前必须确认备份",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "table",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE INDEX <索引名> ON <表名>(<列名>);",
+      "summary": "创建普通索引",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "index"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE UNIQUE INDEX <索引名> ON <表名>(<列名>);",
+      "summary": "创建唯一索引",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "index"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP INDEX <索引名> ON <表名>;",
+      "summary": "删除表上的索引",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "index",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE VIEW <视图名> AS SELECT <字段> FROM <表名>;",
+      "summary": "创建视图封装查询",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "view"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER VIEW <视图名> AS SELECT <字段> FROM <表名>;",
+      "summary": "修改视图定义",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "view"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP VIEW <视图名>;",
+      "summary": "删除视图",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "view"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE TEMPORARY TABLE <临时表名> AS SELECT <字段> FROM <表名>;",
+      "summary": "创建当前会话可见的临时表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "ddl",
+        "temporary"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "INSERT INTO <表名> (<字段1>, <字段2>) VALUES (<值1>, <值2>);",
+      "summary": "插入一行数据",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "insert"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "INSERT INTO <表名> (<字段>) SELECT <字段> FROM <来源表> WHERE <条件>;",
+      "summary": "把查询结果插入目标表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "insert",
+        "select"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "INSERT IGNORE INTO <表名> (<字段>) VALUES (<值>);",
+      "summary": "插入数据并忽略重复键等可忽略错误",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "insert"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "INSERT INTO <表名> (<字段>) VALUES (<值>) ON DUPLICATE KEY UPDATE <字段>=VALUES(<字段>);",
+      "summary": "存在唯一键冲突时改为更新",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "upsert"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "REPLACE INTO <表名> (<字段>) VALUES (<值>);",
+      "summary": "按主键或唯一键替换旧行，注意可能先删后插",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "replace",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "UPDATE <表名> SET <字段>=<值> WHERE <条件>;",
+      "summary": "按条件更新数据，避免遗漏 WHERE",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "update",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DELETE FROM <表名> WHERE <条件>;",
+      "summary": "按条件删除数据，避免遗漏 WHERE",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "delete",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SELECT COUNT(*) FROM <表名> WHERE <条件>;",
+      "summary": "统计满足条件的行数",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "select"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SELECT <字段>, COUNT(*) FROM <表名> GROUP BY <字段> HAVING COUNT(*) > <数量>;",
+      "summary": "分组统计并过滤聚合结果",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "group-by"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "WITH <cte名> AS (SELECT <字段> FROM <表名>) SELECT * FROM <cte名>;",
+      "summary": "使用公共表表达式组织复杂查询",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "cte"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "LOAD DATA LOCAL INFILE '<文件路径>' INTO TABLE <表名> FIELDS TERMINATED BY ',';",
+      "summary": "从本地文件批量导入数据",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "dml",
+        "load-data"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "EXPLAIN FORMAT=TREE SELECT <字段> FROM <表名> WHERE <条件>;",
+      "summary": "用树形格式查看查询执行计划",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "explain",
+        "debug"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "EXPLAIN ANALYZE SELECT <字段> FROM <表名> WHERE <条件>;",
+      "summary": "实际执行并分析查询耗时和行数",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "explain",
+        "performance"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "START TRANSACTION;",
+      "summary": "开始事务",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "COMMIT;",
+      "summary": "提交当前事务",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ROLLBACK;",
+      "summary": "回滚当前事务",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SAVEPOINT <保存点名>;",
+      "summary": "在事务中创建保存点",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ROLLBACK TO SAVEPOINT <保存点名>;",
+      "summary": "回滚到指定保存点",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SET autocommit = 0;",
+      "summary": "关闭当前会话自动提交",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "transaction"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "LOCK TABLES <表名> WRITE;",
+      "summary": "给表加写锁，谨慎用于维护窗口",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "lock",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "UNLOCK TABLES;",
+      "summary": "释放当前会话持有的表锁",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "lock"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE USER '<用户>'@'<主机>' IDENTIFIED BY '<密码>';",
+      "summary": "创建 MySQL 用户",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "account",
+        "security"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ALTER USER '<用户>'@'<主机>' IDENTIFIED BY '<新密码>';",
+      "summary": "修改 MySQL 用户密码",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "account",
+        "security"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP USER '<用户>'@'<主机>';",
+      "summary": "删除 MySQL 用户",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "account",
+        "security",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "RENAME USER '<旧用户>'@'<主机>' TO '<新用户>'@'<主机>';",
+      "summary": "重命名 MySQL 用户",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "account"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "GRANT <权限> ON <数据库>.<表> TO '<用户>'@'<主机>';",
+      "summary": "授予用户权限",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "grant",
+        "security"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "REVOKE <权限> ON <数据库>.<表> FROM '<用户>'@'<主机>';",
+      "summary": "撤销用户权限",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "grant",
+        "security"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "FLUSH PRIVILEGES;",
+      "summary": "重新加载授权表，通常手工改权限表后使用",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "security"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW CREATE TABLE <表名>;",
+      "summary": "查看建表 SQL",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "schema"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW COLUMNS FROM <表名>;",
+      "summary": "查看表字段信息",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "schema"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW INDEX FROM <表名>;",
+      "summary": "查看表索引信息",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "index"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW ENGINE INNODB STATUS\\G",
+      "summary": "查看 InnoDB 锁、事务、死锁等诊断信息",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "innodb",
+        "debug"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW STATUS LIKE '<状态变量>'; ",
+      "summary": "查看服务器状态变量",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "status"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW WARNINGS;",
+      "summary": "查看上一条语句产生的警告",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "warning"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW ERRORS;",
+      "summary": "查看上一条语句产生的错误",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "show",
+        "error"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "ANALYZE TABLE <表名>;",
+      "summary": "更新表统计信息，辅助优化器选择执行计划",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "analyze"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CHECK TABLE <表名>;",
+      "summary": "检查表是否存在错误",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "check"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "OPTIMIZE TABLE <表名>;",
+      "summary": "重组表并回收空间，谨慎在业务低峰执行",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "optimize"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "REPAIR TABLE <表名>;",
+      "summary": "修复支持该操作的表",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "repair",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "KILL <连接ID>;",
+      "summary": "终止指定连接或正在执行的语句",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "admin",
+        "process",
+        "risk"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "PREPARE <语句名> FROM '<SQL文本>';",
+      "summary": "创建预处理语句",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "prepared"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "EXECUTE <语句名> USING @<变量名>;",
+      "summary": "执行预处理语句并传入变量",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "prepared"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DEALLOCATE PREPARE <语句名>;",
+      "summary": "释放预处理语句",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "prepared"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE PROCEDURE <过程名>() BEGIN <语句>; END;",
+      "summary": "创建存储过程",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "routine",
+        "procedure"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP PROCEDURE <过程名>;",
+      "summary": "删除存储过程",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "routine",
+        "procedure"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE FUNCTION <函数名>() RETURNS <类型> RETURN <表达式>;",
+      "summary": "创建存储函数",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "routine",
+        "function"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP FUNCTION <函数名>;",
+      "summary": "删除存储函数",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "routine",
+        "function"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE TRIGGER <触发器名> BEFORE INSERT ON <表名> FOR EACH ROW SET NEW.<列名>=<值>;",
+      "summary": "创建触发器",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "trigger"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP TRIGGER <触发器名>;",
+      "summary": "删除触发器",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "trigger"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CREATE EVENT <事件名> ON SCHEDULE EVERY 1 DAY DO <语句>;",
+      "summary": "创建定时事件",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "event"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "DROP EVENT <事件名>;",
+      "summary": "删除定时事件",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "event"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "CHANGE REPLICATION SOURCE TO SOURCE_HOST='<主库>', SOURCE_USER='<用户>', SOURCE_PASSWORD='<密码>'; ",
+      "summary": "配置副本连接的主库信息",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "replication"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "START REPLICA;",
+      "summary": "启动 MySQL 复制线程",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "replication"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "STOP REPLICA;",
+      "summary": "停止 MySQL 复制线程",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "replication"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "mysql",
+      "command": "SHOW REPLICA STATUS\\G",
+      "summary": "查看复制状态和延迟",
+      "aliases": [],
+      "tags": [
+        "mysql",
+        "sql",
+        "replication",
+        "debug"
+      ],
+      "source": "mysql-sql-statements"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli ping",
+      "summary": "检查 Redis 是否响应 PONG",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "health",
+        "ping"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli -h <主机> -p <端口> ping",
+      "summary": "检查远程 Redis 连接",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "remote",
+        "ping"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli info",
+      "summary": "查看 Redis 实例运行信息",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "info",
+        "diagnose"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli client list",
+      "summary": "查看 Redis 客户端连接",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "client",
+        "diagnose"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli slowlog get 10",
+      "summary": "查看最近慢命令日志",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "slowlog",
+        "debug"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli monitor",
+      "summary": "实时监听 Redis 命令流",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "monitor",
+        "debug"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli scan 0 match \"<模式>\" count 100",
+      "summary": "用 SCAN 分批查找 key，避免 KEYS 阻塞",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "scan",
+        "key"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli get <key>",
+      "summary": "读取字符串 key 的值",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "get",
+        "key"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli ttl <key>",
+      "summary": "查看 key 剩余过期时间",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "ttl",
+        "key"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli memory usage <key>",
+      "summary": "查看 key 内存占用",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "memory",
+        "diagnose"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "redis",
+      "command": "redis-cli config get \"*maxmemory*\"",
+      "summary": "查看 Redis 内存相关配置",
+      "aliases": [],
+      "tags": [
+        "redis",
+        "config",
+        "memory"
+      ],
+      "source": "redis-cli"
+    },
+    {
+      "tool": "git",
+      "command": "git status -sb",
+      "summary": "简洁查看工作区状态和当前分支",
+      "aliases": [],
+      "tags": [
+        "git",
+        "status"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git diff",
+      "summary": "查看未暂存改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "diff"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git diff --staged",
+      "summary": "查看已暂存改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "diff",
+        "staged"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git add <文件>",
+      "summary": "暂存指定文件改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "add"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git commit -m \"<提交说明>\"",
+      "summary": "提交已暂存改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "commit"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git log --oneline --graph --decorate -20",
+      "summary": "图形化查看最近提交历史",
+      "aliases": [],
+      "tags": [
+        "git",
+        "log"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git branch -vv",
+      "summary": "查看本地分支和上游跟踪关系",
+      "aliases": [],
+      "tags": [
+        "git",
+        "branch"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git switch <分支名>",
+      "summary": "切换分支",
+      "aliases": [],
+      "tags": [
+        "git",
+        "branch",
+        "switch"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git switch -c <新分支名>",
+      "summary": "创建并切换到新分支",
+      "aliases": [],
+      "tags": [
+        "git",
+        "branch",
+        "create"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git fetch --all --prune",
+      "summary": "拉取远端引用并清理已删除分支",
+      "aliases": [],
+      "tags": [
+        "git",
+        "fetch",
+        "remote"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git pull --rebase",
+      "summary": "拉取远端并用 rebase 更新当前分支",
+      "aliases": [],
+      "tags": [
+        "git",
+        "pull",
+        "rebase"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git push -u origin <分支名>",
+      "summary": "推送分支并设置上游",
+      "aliases": [],
+      "tags": [
+        "git",
+        "push",
+        "remote"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git stash push -m \"<说明>\"",
+      "summary": "临时保存当前改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "stash"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "git",
+      "command": "git restore <文件>",
+      "summary": "丢弃工作区指定文件改动",
+      "aliases": [],
+      "tags": [
+        "git",
+        "restore",
+        "risk"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh <用户名>@<主机>",
+      "summary": "连接远程 SSH 主机",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "remote",
+        "login"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh -p <端口> <用户名>@<主机>",
+      "summary": "通过指定端口连接 SSH",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "remote",
+        "port"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh -i <私钥路径> <用户名>@<主机>",
+      "summary": "使用指定私钥登录 SSH",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "key",
+        "login"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh -L <本地端口>:127.0.0.1:<远端端口> <用户名>@<主机>",
+      "summary": "建立本地端口转发",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "tunnel",
+        "local"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh -R <远端端口>:127.0.0.1:<本地端口> <用户名>@<主机>",
+      "summary": "建立反向端口转发",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "tunnel",
+        "reverse"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "scp <本地文件> <用户名>@<主机>:<远端路径>",
+      "summary": "上传文件到远端主机",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "scp",
+        "upload"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "scp <用户名>@<主机>:<远端文件> <本地路径>",
+      "summary": "从远端主机下载文件",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "scp",
+        "download"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "ssh",
+      "command": "ssh-keygen -t ed25519 -C \"<备注>\"",
+      "summary": "生成 ed25519 SSH 密钥",
+      "aliases": [],
+      "tags": [
+        "ssh",
+        "keygen"
+      ],
+      "source": "git-reference"
+    },
+    {
+      "tool": "windows",
+      "command": "Get-Service",
+      "summary": "查看 Windows 服务列表",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Get-Service -Name <服务名>",
+      "summary": "按服务名查看服务状态",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Get-Service | Where-Object {$_.Status -eq \"Running\"}",
+      "summary": "查看正在运行的服务",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Start-Service -Name <服务名>",
+      "summary": "启动 Windows 服务",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Stop-Service -Name <服务名>",
+      "summary": "停止 Windows 服务",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service",
+        "risk"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Restart-Service -Name <服务名>",
+      "summary": "重启 Windows 服务",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "service",
+        "risk"
+      ],
+      "source": "powershell-service"
+    },
+    {
+      "tool": "windows",
+      "command": "Get-Process",
+      "summary": "查看当前进程列表",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "process"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "Get-Process -Name <进程名>",
+      "summary": "按名称查找进程",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "process"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "Stop-Process -Id <PID> -Force",
+      "summary": "按 PID 强制结束进程",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "powershell",
+        "process",
+        "risk"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "tasklist",
+      "summary": "在 CMD 中查看进程列表",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "cmd",
+        "process"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "taskkill /PID <PID> /F",
+      "summary": "在 CMD 中按 PID 强制结束进程",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "cmd",
+        "process",
+        "risk"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "ipconfig /all",
+      "summary": "查看 Windows 网络适配器详细配置",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "cmd",
+        "network"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "netstat -ano",
+      "summary": "查看端口监听和连接对应 PID",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "cmd",
+        "network",
+        "port"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "where <命令名>",
+      "summary": "查找命令所在路径",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "cmd",
+        "path"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "winget search <软件名>",
+      "summary": "搜索可安装软件包",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "winget",
+        "package"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "windows",
+      "command": "winget install <软件名或ID>",
+      "summary": "安装软件包",
+      "aliases": [],
+      "tags": [
+        "windows",
+        "winget",
+        "package"
+      ],
+      "source": "windows-commands"
+    },
+    {
+      "tool": "npm",
+      "command": "npm install",
+      "summary": "根据 package-lock 安装依赖",
+      "aliases": [],
+      "tags": [
+        "node",
+        "npm",
+        "install"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "npm run <脚本名>",
+      "summary": "运行 package.json 中定义的脚本",
+      "aliases": [],
+      "tags": [
+        "node",
+        "npm",
+        "script"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "npm test",
+      "summary": "运行项目测试脚本",
+      "aliases": [],
+      "tags": [
+        "node",
+        "npm",
+        "test"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "npm outdated",
+      "summary": "查看过期依赖",
+      "aliases": [],
+      "tags": [
+        "node",
+        "npm",
+        "dependency"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "npm audit",
+      "summary": "检查依赖安全风险",
+      "aliases": [],
+      "tags": [
+        "node",
+        "npm",
+        "security"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "pnpm install",
+      "summary": "使用 pnpm 安装依赖",
+      "aliases": [],
+      "tags": [
+        "node",
+        "pnpm",
+        "install"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "npm",
+      "command": "yarn install",
+      "summary": "使用 Yarn 安装依赖",
+      "aliases": [],
+      "tags": [
+        "node",
+        "yarn",
+        "install"
+      ],
+      "source": "node-npm"
+    },
+    {
+      "tool": "python",
+      "command": "python --version",
+      "summary": "查看 Python 版本",
+      "aliases": [],
+      "tags": [
+        "python",
+        "version"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "python",
+      "command": "python -m venv .venv",
+      "summary": "创建虚拟环境",
+      "aliases": [],
+      "tags": [
+        "python",
+        "venv"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "python",
+      "command": ".\\.venv\\Scripts\\Activate.ps1",
+      "summary": "在 PowerShell 中激活虚拟环境",
+      "aliases": [],
+      "tags": [
+        "python",
+        "venv",
+        "windows"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "python",
+      "command": "pip install -r requirements.txt",
+      "summary": "安装 Python 依赖文件",
+      "aliases": [],
+      "tags": [
+        "python",
+        "pip",
+        "install"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "python",
+      "command": "pytest -q",
+      "summary": "运行 pytest 测试并简洁输出",
+      "aliases": [],
+      "tags": [
+        "python",
+        "pytest",
+        "test"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "python",
+      "command": "python -m pip list",
+      "summary": "查看已安装 Python 包",
+      "aliases": [],
+      "tags": [
+        "python",
+        "pip",
+        "list"
+      ],
+      "source": "python-docs"
+    },
+    {
+      "tool": "java",
+      "command": "java -version",
+      "summary": "查看 Java 运行时版本",
+      "aliases": [],
+      "tags": [
+        "java",
+        "version"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": "javac -version",
+      "summary": "查看 Java 编译器版本",
+      "aliases": [],
+      "tags": [
+        "java",
+        "version",
+        "javac"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": "mvn -v",
+      "summary": "查看 Maven 和 Java 环境信息",
+      "aliases": [],
+      "tags": [
+        "java",
+        "maven",
+        "version"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": "mvn clean package -DskipTests",
+      "summary": "跳过测试打包 Maven 项目",
+      "aliases": [],
+      "tags": [
+        "java",
+        "maven",
+        "build"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": "mvn test",
+      "summary": "运行 Maven 测试",
+      "aliases": [],
+      "tags": [
+        "java",
+        "maven",
+        "test"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": "gradle build",
+      "summary": "构建 Gradle 项目",
+      "aliases": [],
+      "tags": [
+        "java",
+        "gradle",
+        "build"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "java",
+      "command": ".\\gradlew bootRun",
+      "summary": "运行 Spring Boot Gradle 项目",
+      "aliases": [],
+      "tags": [
+        "java",
+        "spring",
+        "gradle"
+      ],
+      "source": "maven-cli"
+    },
+    {
+      "tool": "adb",
+      "command": "adb devices",
+      "summary": "查看已连接 Android 设备",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "device"
+      ],
+      "source": "android-adb"
+    },
+    {
+      "tool": "adb",
+      "command": "adb shell",
+      "summary": "进入 Android 设备 shell",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "shell"
+      ],
+      "source": "android-adb"
+    },
+    {
+      "tool": "adb",
+      "command": "adb install <apk路径>",
+      "summary": "安装 APK 到设备",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "install"
+      ],
+      "source": "android-adb"
+    },
+    {
+      "tool": "adb",
+      "command": "adb logcat",
+      "summary": "查看 Android 系统日志",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "logs"
+      ],
+      "source": "android-adb"
+    },
+    {
+      "tool": "adb",
+      "command": "adb pull <设备路径> <本地路径>",
+      "summary": "从设备复制文件到本机",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "pull"
+      ],
+      "source": "android-adb"
+    },
+    {
+      "tool": "adb",
+      "command": "adb push <本地路径> <设备路径>",
+      "summary": "从本机复制文件到设备",
+      "aliases": [],
+      "tags": [
+        "android",
+        "adb",
+        "push"
+      ],
+      "source": "android-adb"
+    }
+  ]
+}

@@ -6,8 +6,10 @@ static class Program
     static void Main()
     {
         ApplicationConfiguration.Initialize();
-        var root = ProjectRootResolver.Resolve(Environment.GetCommandLineArgs());
-        using var app = new TerminalAiApplicationContext(root);
+        var args = Environment.GetCommandLineArgs();
+        var root = ProjectRootResolver.Resolve(args);
+        var openCommandManager = args.Any(arg => string.Equals(arg, "--command-manager", StringComparison.OrdinalIgnoreCase));
+        using var app = new TerminalAiApplicationContext(root, openCommandManager);
         Application.Run(app);
     }
 }

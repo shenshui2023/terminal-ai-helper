@@ -204,6 +204,60 @@ export async function requestCommandHelp(config, prompt) {
   }
 }
 
+export async function requestCommandExtraction(config, { text, url = "", tool = "custom" } = {}) {
+  if (!config.apiKey) {
+    throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");
+  }
+
+  const input = [
+    "你是命令文档整理助手。请从输入文档里提取可直接用于终端补全的常用命令。",
+    "只输出 JSON，不要 Markdown。",
+    "JSON 格式：{\"commands\":[{\"tool\":\"工具分类\",\"command\":\"命令模板\",\"summary\":\"一句中文用途说明\",\"aliases\":[],\"tags\":[],\"source\":\"ai-import\",\"sourceUrl\":\"来源URL\"}]}",
+    "规则：",
+    "1. command 必须是正确命令模板，可以使用 <服务名>、<命名空间> 这类占位符。",
+    "2. 不要输出明显错误或拼接错的命令。",
+    "3. summary 控制在 30 个中文以内。",
+    "4. 优先提取查看、诊断、启动、停止、日志、连接、部署、构建这类高频命令。",
+    "5. 最多返回 80 条。",
+    `默认工具分类：${tool || "custom"}`,
+    url ? `来源 URL：${url}` : "",
+    "",
+    String(text || "").slice(0, 60000)
+  ].filter(Boolean).join("\n");
+
+  const body = {
+    model: config.model,
+    input,
+    text: { format: { type: "json_object" } },
+    store: false
+  };
+
+  const effort = config.reasoningEffort.toLowerCase();
+  if (["minimal", "low", "medium", "high"].includes(effort)) {
+    body.reasoning = { effort };
+  }
+
+  const response = await postResponses(config, body);
+  if (!response.ok) {
+    throw new Error(`API HTTP ${response.status}: ${response.text.slice(0, 500)}`);
+  }
+  const data = JSON.parse(response.text);
+  const parsed = parseJsonObject(parseOutputText(data));
+  const commands = Array.isArray(parsed.commands) ? parsed.commands : [];
+  return commands
+    .map((entry) => ({
+      tool: String(entry?.tool || tool || "custom").trim(),
+      command: String(entry?.command || "").trim(),
+      summary: String(entry?.summary || "").trim(),
+      aliases: list(entry?.aliases),
+      tags: list(entry?.tags),
+      source: String(entry?.source || "ai-import").trim(),
+      sourceUrl: String(entry?.sourceUrl || entry?.url || url || "").trim()
+    }))
+    .filter((entry) => entry.command && entry.summary)
+    .slice(0, 80);
+}
+
 export async function requestCommandHelpTextStream(config, prompt, onText) {
   if (!config.apiKey) {
     throw new Error("Missing API key. Set OPENAI_API_KEY or create %USERPROFILE%\\.codex\\auth.json with OPENAI_API_KEY.");

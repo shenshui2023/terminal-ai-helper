@@ -16,6 +16,8 @@ param(
 $ErrorActionPreference = "Stop"
 $script:TaihRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $script:TaihCli = Join-Path $script:TaihRoot "bin\taih.js"
+$script:TaihCommandCache = Join-Path $script:TaihRoot "src\knowledge\command-cache.json"
+$script:TaihCommandCacheEntries = $null
 
 function L {
     param([string]$Text)
@@ -50,13 +52,103 @@ function Write-Result {
     Write-Output ($obj | ConvertTo-Json -Compress)
 }
 
-function Add-Candidate {
-    param($List, [string]$Text)
+function Get-CandidateCommand {
+    param([AllowNull()][string]$Text)
     $value = ([string]$Text).Trim()
+    if (-not $value) { return "" }
+    if ($value.Contains("`t")) { return ($value -split "`t", 2)[0].Trim() }
+    return $value
+}
+
+function Format-Candidate {
+    param([string]$Command, [string]$Summary = "")
+    $cmd = ([string]$Command).Trim()
+    $desc = ([string]$Summary).Trim()
+    if (-not $cmd) { return "" }
+    if (-not $desc) { return $cmd }
+    return "$cmd`t$desc"
+}
+
+function Add-Candidate {
+    param($List, [string]$Text, [string]$Summary = "")
+    $display = Format-Candidate -Command $Text -Summary $Summary
+    $value = (Get-CandidateCommand $display)
     if (-not $value) { return }
-    if (-not $List.Contains($value)) {
-        [void]$List.Add($value)
+    foreach ($existing in $List) {
+        if ((Get-CandidateCommand ([string]$existing)).Equals($value, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return
+        }
     }
+    [void]$List.Add($display)
+}
+
+function Get-CommandCacheEntries {
+    if ($script:TaihCommandCacheEntries -ne $null) { return @($script:TaihCommandCacheEntries) }
+    if (-not (Test-Path -LiteralPath $script:TaihCommandCache)) {
+        $script:TaihCommandCacheEntries = @()
+        return @()
+    }
+    try {
+        $raw = [System.IO.File]::ReadAllText($script:TaihCommandCache, [System.Text.Encoding]::UTF8)
+        $data = $raw | ConvertFrom-Json
+        $script:TaihCommandCacheEntries = @($data.commands)
+        return @($script:TaihCommandCacheEntries)
+    } catch {
+        $script:TaihCommandCacheEntries = @()
+        return @()
+    }
+}
+
+function Convert-SearchPrefix {
+    param([string]$Text)
+    $value = ([string]$Text).Trim()
+    if (-not $value) { return "" }
+    if ($value -match '^kube(\s|$)') { return $value -replace '^kube', 'kubectl' }
+    if ($value -match '^system(\s|$)') { return $value -replace '^system', 'systemctl' }
+    return $value
+}
+
+function Get-CacheCandidates {
+    param([string]$Text, [int]$Limit = 14)
+    $original = ([string]$Text).Trim()
+    $prefix = (Convert-SearchPrefix $original).ToLowerInvariant()
+    if (-not $prefix) { return @() }
+    $tokens = @($prefix -split '\s+' | Where-Object { $_ })
+    $result = New-Object System.Collections.Generic.List[string]
+    $scored = New-Object System.Collections.Generic.List[object]
+    $index = 0
+    foreach ($entry in (Get-CommandCacheEntries)) {
+        $index += 1
+        $command = ([string]$entry.command).Trim()
+        if (-not $command) { continue }
+        $aliases = @($entry.aliases)
+        $summary = ([string]$entry.summary).Trim()
+        $tags = @($entry.tags)
+        $haystack = (($command, $summary, $entry.tool) + $aliases + $tags -join " ").ToLowerInvariant()
+        $score = 0
+        if ($command.ToLowerInvariant().StartsWith($prefix)) { $score += 100 }
+        foreach ($alias in $aliases) {
+            if (([string]$alias).ToLowerInvariant().StartsWith($original.ToLowerInvariant())) { $score += 96 }
+        }
+        if ($haystack.Contains($prefix)) { $score += 40 }
+        foreach ($token in $tokens) {
+            if ($haystack.Contains($token)) { $score += 8 }
+        }
+        if ($score -le 0) { continue }
+        $displayCommand = $command
+        foreach ($alias in $aliases) {
+            $aliasText = ([string]$alias).Trim()
+            if ($aliasText.ToLowerInvariant().StartsWith($original.ToLowerInvariant()) -and $original -notmatch '^system(\s|$)') {
+                $displayCommand = $aliasText
+                break
+            }
+        }
+        [void]$scored.Add([pscustomobject]@{ Score = $score; Index = $index; Command = $displayCommand; Summary = $summary })
+    }
+    foreach ($item in ($scored | Sort-Object -Property @{ Expression = "Score"; Descending = $true }, @{ Expression = "Index"; Ascending = $true } | Select-Object -First $Limit)) {
+        Add-Candidate $result $item.Command $item.Summary
+    }
+    return @($result)
 }
 
 function Convert-CompletionPrefix {
@@ -79,6 +171,10 @@ function Get-LocalCandidates {
     $list = New-Object System.Collections.Generic.List[string]
     if (-not $trimmed) { return @() }
     $command = ($trimmed -split '\s+', 2)[0].ToLowerInvariant()
+
+    foreach ($item in (Get-CacheCandidates -Text $Text)) {
+        Add-Candidate $list $item
+    }
 
     function Add-WhenUseful([string]$Candidate) {
         if ($Candidate.StartsWith($trimmed, [System.StringComparison]::OrdinalIgnoreCase) -or
@@ -185,8 +281,8 @@ function Get-LocalCandidates {
     }
 
     if ($list.Count -eq 0 -and $trimmed.Length -ge 2) {
-        Add-Candidate $list "$trimmed --help"
-        Add-Candidate $list "$trimmed -h"
+        Add-Candidate $list "$trimmed --help" (L '\u67e5\u770b\u547d\u4ee4\u5e2e\u52a9')
+        Add-Candidate $list "$trimmed -h" (L '\u67e5\u770b\u7b80\u77ed\u5e2e\u52a9')
     }
 
     return @($list | Select-Object -First 8)
@@ -259,7 +355,7 @@ function Open-CompletionExplainPanel {
 
 $local = @(Get-LocalCandidates -Text $Prefix)
 if ($NoDialog) {
-    $choice = if ($local.Count -gt 0) { [string]$local[0] } else { $Prefix }
+    $choice = if ($local.Count -gt 0) { Get-CandidateCommand ([string]$local[0]) } else { $Prefix }
     if ($WaitAi) {
         $stdout = [System.IO.Path]::GetTempFileName()
         $stderr = [System.IO.Path]::GetTempFileName()
@@ -332,6 +428,38 @@ $list.BackColor = $surface
 $list.ForeColor = $fg
 $list.BorderStyle = "None"
 $list.Font = New-Object System.Drawing.Font("Consolas", 10)
+$list.DrawMode = [System.Windows.Forms.DrawMode]::OwnerDrawFixed
+$list.ItemHeight = 24
+$summaryFont = New-Object System.Drawing.Font("Microsoft YaHei UI", 9)
+$list.Add_DrawItem({
+    param($sender, $eventArgs)
+    if ($eventArgs.Index -lt 0) { return }
+    $text = [string]$sender.Items[$eventArgs.Index]
+    $command = Get-CandidateCommand $text
+    $summary = ""
+    if ($text.Contains("`t")) { $summary = ($text -split "`t", 2)[1].Trim() }
+    $selected = (($eventArgs.State -band [System.Windows.Forms.DrawItemState]::Selected) -ne 0)
+    $backColor = if ($selected) { $accent } else { $surface }
+    $commandColor = if ($selected) { [System.Drawing.Color]::White } else { $fg }
+    $summaryColor = if ($selected) { [System.Drawing.Color]::FromArgb(225, 235, 245) } else { $muted }
+    $backBrush = New-Object System.Drawing.SolidBrush($backColor)
+    $commandBrush = New-Object System.Drawing.SolidBrush($commandColor)
+    $summaryBrush = New-Object System.Drawing.SolidBrush($summaryColor)
+    try {
+        $eventArgs.Graphics.FillRectangle($backBrush, $eventArgs.Bounds)
+        $commandWidth = [Math]::Min(460, [Math]::Max(260, [int]($eventArgs.Bounds.Width * 0.48)))
+        $commandRect = New-Object System.Drawing.RectangleF(($eventArgs.Bounds.X + 4), ($eventArgs.Bounds.Y + 3), $commandWidth, ($eventArgs.Bounds.Height - 4))
+        $summaryRect = New-Object System.Drawing.RectangleF(($eventArgs.Bounds.X + $commandWidth + 18), ($eventArgs.Bounds.Y + 4), [Math]::Max(20, $eventArgs.Bounds.Width - $commandWidth - 24), ($eventArgs.Bounds.Height - 4))
+        $eventArgs.Graphics.DrawString($command, $sender.Font, $commandBrush, $commandRect)
+        if ($summary) {
+            $eventArgs.Graphics.DrawString($summary, $summaryFont, $summaryBrush, $summaryRect)
+        }
+    } finally {
+        $backBrush.Dispose()
+        $commandBrush.Dispose()
+        $summaryBrush.Dispose()
+    }
+})
 
 $edit = New-Object System.Windows.Forms.TextBox
 $edit.Dock = "Fill"
@@ -384,7 +512,7 @@ $status.Text = L 'AI \u6b63\u5728\u540e\u53f0\u8865\u5145...'
 
 foreach ($item in $local) { Add-Candidate $list.Items $item }
 if ($list.Items.Count -eq 0 -and $Prefix.Trim()) { Add-Candidate $list.Items $Prefix }
-if ($list.Items.Count -gt 0) { $list.SelectedIndex = 0; $edit.Text = [string]$list.SelectedItem }
+if ($list.Items.Count -gt 0) { $list.SelectedIndex = 0; $edit.Text = Get-CandidateCommand ([string]$list.SelectedItem) }
 $edit.SelectionStart = $edit.TextLength
 
 $script:choice = $null
@@ -411,8 +539,8 @@ $timer.Add_Tick({
             $script:choiceSource = "ai"
             if ($WaitAi) {
                 $list.SelectedIndex = $before
-                $edit.Text = [string]$list.SelectedItem
-                $script:choice = [string]$edit.Text
+                $edit.Text = Get-CandidateCommand ([string]$list.SelectedItem)
+                $script:choice = Get-CandidateCommand ([string]$edit.Text)
                 $form.Close()
             }
             return
@@ -426,13 +554,13 @@ $timer.Add_Tick({
             $status.Text = L 'AI \u672a\u8fd4\u56de\u65b0\u5019\u9009'
         }
         if ($WaitAi) {
-            $script:choice = [string]$edit.Text
+            $script:choice = Get-CandidateCommand ([string]$edit.Text)
             $form.Close()
         }
     } catch {
         $status.Text = (L 'AI \u5019\u9009\u89e3\u6790\u5931\u8d25\uff1a') + $_.Exception.Message
         if ($WaitAi) {
-            $script:choice = [string]$edit.Text
+            $script:choice = Get-CandidateCommand ([string]$edit.Text)
             $form.Close()
         }
     } finally {
@@ -460,7 +588,7 @@ $startAi = {
     } catch {
         $status.Text = (L 'AI \u5019\u9009\u542f\u52a8\u5931\u8d25\uff1a') + $_.Exception.Message
         if ($WaitAi) {
-            $script:choice = [string]$edit.Text
+            $script:choice = Get-CandidateCommand ([string]$edit.Text)
             $form.Close()
         }
     }
@@ -470,13 +598,13 @@ $form.Add_Shown({ & $startAi })
 
 $list.Add_SelectedIndexChanged({
     if ($list.SelectedIndex -ge 0) {
-        $edit.Text = [string]$list.SelectedItem
+        $edit.Text = Get-CandidateCommand ([string]$list.SelectedItem)
         $edit.SelectionStart = $edit.TextLength
     }
 })
 
 $accept = {
-    $value = ([string]$edit.Text).Trim()
+    $value = Get-CandidateCommand ([string]$edit.Text)
     if ($value) {
         $script:choice = $value
         $form.Close()
@@ -487,13 +615,14 @@ $insert.Add_Click($accept)
 $list.Add_DoubleClick($accept)
 $refresh.Add_Click({ & $startAi -ForceRefresh })
 $copy.Add_Click({
-    if ($edit.Text) {
-        Set-Clipboard -Value $edit.Text
+    $value = (Get-CandidateCommand ([string]$edit.Text))
+    if ($value) {
+        Set-Clipboard -Value $value
         $status.Text = L '\u5df2\u590d\u5236'
     }
 })
 $explain.Add_Click({
-    $value = ([string]$edit.Text).Trim()
+    $value = (Get-CandidateCommand ([string]$edit.Text))
     if ($value) {
         [void](Open-CompletionExplainPanel -Text $value)
         $script:choice = $null
@@ -512,6 +641,7 @@ $form.Add_KeyDown({
 })
 $form.Add_FormClosed({
     try { $timer.Stop(); $timer.Dispose() } catch {}
+    try { $summaryFont.Dispose() } catch {}
     if ($process -and -not $process.HasExited) { try { $process.Kill() } catch {} }
     Remove-Item -LiteralPath $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
     if ($script:TaihPopupInstructionsFile) { Remove-Item -LiteralPath $script:TaihPopupInstructionsFile -Force -ErrorAction SilentlyContinue }

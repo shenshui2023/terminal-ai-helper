@@ -10,8 +10,9 @@ internal sealed class TerminalAiApplicationContext : ApplicationContext
     private readonly NotifyIcon _notify;
     private readonly GlobalHotKeyWindow _hotKeys;
     private readonly LocalServerManager _server;
+    private System.Windows.Forms.Timer? _startupTimer;
 
-    public TerminalAiApplicationContext(string root)
+    public TerminalAiApplicationContext(string root, bool openCommandManager = false)
     {
         var launcher = new ProcessLauncher(root);
         var bridge = new PowerShellBridge(root, launcher);
@@ -24,19 +25,30 @@ internal sealed class TerminalAiApplicationContext : ApplicationContext
             Icon = SystemIcons.Information,
             Text = "终端 AI 助手",
             Visible = true,
-            ContextMenuStrip = BuildMenu(actions)
+            ContextMenuStrip = BuildMenu(actions, root, launcher)
         };
         _notify.DoubleClick += (_, _) => actions.OpenPanel();
 
         _hotKeys = new GlobalHotKeyWindow();
         RegisterHotKeys(actions);
         ShowTip("桌面端已启动：Ctrl+Alt+P 补全当前终端输入，Ctrl+Alt+E 解释当前输入。");
+        if (openCommandManager)
+        {
+            _startupTimer = new System.Windows.Forms.Timer { Interval = 250 };
+            _startupTimer.Tick += (_, _) =>
+            {
+                _startupTimer?.Stop();
+                new CommandManagerForm(root, launcher).Show();
+            };
+            _startupTimer.Start();
+        }
     }
 
-    private ContextMenuStrip BuildMenu(TerminalAiDesktopActions actions)
+    private ContextMenuStrip BuildMenu(TerminalAiDesktopActions actions, string root, ProcessLauncher launcher)
     {
         var menu = new ContextMenuStrip();
         Add(menu, "打开管理面板", actions.OpenPanel);
+        Add(menu, "管理命令缓存", () => new CommandManagerForm(root, launcher).Show());
         Add(menu, "打开 SSH 面板", actions.OpenSshPanel);
         menu.Items.Add(new ToolStripSeparator());
         Add(menu, "解释当前终端输入（Ctrl+Alt+E）", actions.ExplainForegroundCommand);
@@ -99,6 +111,7 @@ internal sealed class TerminalAiApplicationContext : ApplicationContext
         {
             _hotKeys.Dispose();
             _server.Dispose();
+            _startupTimer?.Dispose();
             _notify.Visible = false;
             _notify.Dispose();
         }

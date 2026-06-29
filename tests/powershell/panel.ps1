@@ -52,18 +52,27 @@ if (-not ($sshCompletions | Where-Object { $_ -like "ssh *$sshCandidate*" })) {
     throw "missing readable ssh completion candidate"
 }
 $kubeCompletions = @(Get-TerminalAiLocalCompletions -Prefix "kube get svc")
-if ($kubeCompletions.Count -lt 3 -or -not ($kubeCompletions | Where-Object { $_ -like "kube get svc -A" })) {
+$kubeCompletionCommands = @($kubeCompletions | ForEach-Object { Get-TerminalAiCompletionCommand -Value $_ })
+if ($kubeCompletions.Count -lt 3 -or -not ($kubeCompletionCommands | Where-Object { $_ -eq "kube get svc -A" })) {
     throw "missing local Kubernetes service completion candidates"
 }
+if (-not ($kubeCompletions | Where-Object { $_ -like "*`t*" })) {
+    throw "local Kubernetes service completions should include display summaries"
+}
 $systemCompletions = @(Get-TerminalAiLocalCompletions -Prefix "system status")
-if (-not ($systemCompletions | Where-Object { $_ -like "systemctl status*" })) {
+$systemCompletionCommands = @($systemCompletions | ForEach-Object { Get-TerminalAiCompletionCommand -Value $_ })
+if (-not ($systemCompletionCommands | Where-Object { $_ -like "systemctl status*" })) {
     throw "system status should be corrected to systemctl status candidates"
 }
-if ($systemCompletions | Where-Object { $_ -like "system status*" -or $_ -like "system statussysteminfo*" }) {
+if ($systemCompletionCommands | Where-Object { $_ -like "system status*" -or $_ -like "system statussysteminfo*" }) {
     throw "mistyped system candidates must not be recommended"
 }
+if (-not ($systemCompletions | Where-Object { $_ -like "*`t*" })) {
+    throw "systemctl completions should include display summaries"
+}
 $gluedSystemCompletions = @(Get-TerminalAiLocalCompletions -Prefix "system statussysteminfo")
-if (-not ($gluedSystemCompletions | Where-Object { $_ -like "systemctl status*" })) {
+$gluedSystemCompletionCommands = @($gluedSystemCompletions | ForEach-Object { Get-TerminalAiCompletionCommand -Value $_ })
+if (-not ($gluedSystemCompletionCommands | Where-Object { $_ -like "systemctl status*" })) {
     throw "glued system status typo should still be corrected"
 }
 

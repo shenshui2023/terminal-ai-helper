@@ -2,12 +2,14 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 import { loadConfig } from "../../src/core/config.js";
-import { requestCommandHelp, requestCommandHelpTextStream } from "../../src/core/api.js";
+import { requestCommandExtraction, requestCommandHelp, requestCommandHelpTextStream } from "../../src/core/api.js";
 import { buildPlainPrompt, buildPrompt } from "../../src/ai/prompts.js";
 import { renderHuman, renderJson, renderRaw } from "../../src/core/render.js";
 import { readClipboard, writeClipboard } from "../../src/core/clipboard.js";
 import { appendHistory, cacheStats, clearCache, getCache, readHistory, setCache } from "../../src/core/store.js";
 import { getLocalHelp } from "../../src/knowledge/local-help.js";
+import { commandCacheEntries } from "../../src/knowledge/command-cache.js";
+import { addUserCommand, deleteUserCommand, importUserCommands, userCommandCachePath } from "../../src/knowledge/user-command-cache.js";
 
 const args = process.argv.slice(2);
 const validModes = new Set(["explain", "complete", "fix", "tools"]);
@@ -24,6 +26,13 @@ function usage() {
   taih history [--json]              查看最近的命令帮助历史
   taih cache clear                   清理本地缓存
   taih cache stats                   查看缓存和历史占用
+  taih commands list [--json]        查看内置和用户命令一级缓存
+  taih commands add --tool <分类> --command <命令> --summary <说明>
+                                      手动新增一条用户命令
+  taih commands delete --command <命令>
+                                      删除一条用户命令
+  taih commands import --from-file <文件> [--url <官网URL>]
+                                      让中转站从文档里提取命令并写入用户缓存
   taih config get                    查看当前配置
   taih config set model <模型名>      写入用户级模型配置
   taih config set base-url <地址>     写入用户级接口地址
@@ -92,6 +101,105 @@ function defaultToolsText(tools) {
   return `生成 ${tools || "auto"} 工具集的常用命令菜单，包含基础查看、排查、补全示例和风险提醒。`;
 }
 
+function filterCommandEntries({ query = "", tool = "" } = {}) {
+  const q = String(query || "").trim().toLowerCase();
+  const selectedTool = String(tool || "").trim().toLowerCase();
+  return commandCacheEntries().filter((entry) => {
+    if (selectedTool && String(entry.tool || "").toLowerCase() !== selectedTool) return false;
+    if (!q) return true;
+    const haystack = [
+      entry.tool,
+      entry.command,
+      entry.summary,
+      ...(entry.aliases || []),
+      ...(entry.tags || [])
+    ].join(" ").toLowerCase();
+    return haystack.includes(q);
+  });
+}
+
+async function fetchDocumentText(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const content = await response.text();
+    return content
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .slice(0, 80000);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function handleCommands({ asJson, config }) {
+  const sub = args.shift() || "list";
+  const query = takeOption("--query", "");
+  const tool = takeOption("--tool", "");
+
+  if (sub === "list") {
+    const commands = filterCommandEntries({ query, tool });
+    if (asJson) {
+      console.log(JSON.stringify({ userCachePath: userCommandCachePath(), commands }, null, 2));
+      return;
+    }
+    for (const entry of commands) {
+      console.log(`${entry.command}\t${entry.summary}`);
+    }
+    return;
+  }
+
+  if (sub === "add") {
+    const command = takeOption("--command", "");
+    const summary = takeOption("--summary", "");
+    const tags = takeOption("--tags", "");
+    const source = takeOption("--source", "user");
+    const sourceUrl = takeOption("--url", "");
+    const entry = addUserCommand({ tool: tool || "custom", command, summary, tags, source, sourceUrl });
+    console.log(asJson ? JSON.stringify({ ok: true, userCachePath: userCommandCachePath(), entry }, null, 2) : `已新增：${entry.command}`);
+    return;
+  }
+
+  if (sub === "delete" || sub === "remove") {
+    const command = takeOption("--command", args.join(" ").trim());
+    const result = deleteUserCommand(command);
+    console.log(asJson ? JSON.stringify({ ok: true, ...result }, null, 2) : `已删除 ${result.deleted} 条`);
+    return;
+  }
+
+  if (sub === "import") {
+    const file = takeOption("--from-file", "");
+    const url = takeOption("--url", "");
+    const dryRun = takeFlag("--dry-run");
+    const pieces = [];
+    if (file) pieces.push(fs.readFileSync(file, "utf8"));
+    if (url) pieces.push(await fetchDocumentText(url));
+    const stdin = await readStdinIfPiped();
+    if (stdin) pieces.push(stdin);
+    const text = pieces.join("\n\n").trim();
+    if (!text) {
+      console.error("No document text provided. Use --from-file, --url, or pipe text.");
+      process.exitCode = 2;
+      return;
+    }
+    const commands = await requestCommandExtraction(config, { text, url, tool: tool || "custom" });
+    if (dryRun) {
+      console.log(asJson ? JSON.stringify({ commands }, null, 2) : commands.map((entry) => `${entry.command}\t${entry.summary}`).join("\n"));
+      return;
+    }
+    const result = importUserCommands(commands);
+    console.log(asJson ? JSON.stringify({ ok: true, userCachePath: userCommandCachePath(), ...result }, null, 2) : `已导入 ${result.imported} 条命令`);
+    return;
+  }
+
+  console.error("用法: taih commands list|add|delete|import");
+  process.exitCode = 2;
+}
+
 async function main() {
   const asJson = takeFlag("--json");
   const asRaw = takeFlag("--raw");
@@ -122,6 +230,11 @@ async function main() {
   if (mode === "serve") {
     const { startServer } = await import("../../src/server/http-server.js");
     await startServer({ config, port, replaceExisting });
+    return;
+  }
+
+  if (mode === "commands") {
+    await handleCommands({ asJson, config });
     return;
   }
 
